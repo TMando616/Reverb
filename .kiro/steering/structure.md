@@ -8,7 +8,8 @@ Reverb/
 │   ├── steering/              プロジェクト全体のルール（本ファイル群）
 │   │   ├── product.md
 │   │   ├── tech.md
-│   │   └── structure.md
+│   │   ├── structure.md
+│   │   └── frontend.md
 │   └── specs/{feature}/       機能ごとの仕様
 │       ├── requirements.md
 │       ├── design.md
@@ -31,10 +32,11 @@ Reverb/
 │   ├── tests/
 │   ├── pyproject.toml         依存は uv で管理
 │   └── .importlinter          層の依存契約（CI で検証）
-├── frontend/                  Next.js 16
-│   ├── app/
-│   ├── components/
-│   └── lib/
+├── frontend/                  Next.js 16（詳細は steering/frontend.md）
+│   ├── app/                   ルーティング。app/api は BFF（認証の中継のみ・ADR-0014）
+│   ├── components/            ui/（ドメインを知らない）＋ {domain}/
+│   ├── lib/                   api / realtime / auth
+│   └── types/                 OpenAPI からの生成物
 ├── docs/
 │   ├── requirements-overview.md   プロジェクト全体の要件定義
 │   └── adr/                       設計判断の記録
@@ -74,6 +76,8 @@ Controller → Service → Repository → DB
 | 中間テーブル | 単数形をアンダースコアで連結（アルファベット順） | `content_tags` |
 | 環境変数 | UPPER_SNAKE_CASE | `QIITA_ACCESS_TOKEN` |
 | ADR | `NNNN-kebab-title.md` | `0012-fastapi.md` |
+
+フロントエンドの命名規則は `frontend.md` §6 を参照。
 
 ## 主要なテーブルと関係
 
