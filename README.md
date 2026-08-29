@@ -36,10 +36,10 @@ note の収益化を目指して文献を100本読んだが、**学んだこと�
 
 | 領域 | 採用 |
 |---|---|
-| バックエンド | TypeScript / NestJS |
+| バックエンド | Python / FastAPI |
 | フロントエンド | Next.js 16 / React 19 |
 | DB | PostgreSQL |
-| キュー | BullMQ + Redis |
+| キュー | Redis ベースのジョブ基盤（未決・ADR-0013） |
 | リアルタイム | WebSocket（編集ロック・コメント）／ SSE（ジョブ進捗） |
 | LLM | Claude API |
 | インフラ | AWS / GitHub Actions |
@@ -53,7 +53,7 @@ note の収益化を目指して文献を100本読んだが、**学んだこと�
 ┌──────────────────┐              ┌────────────────────────┐
 │  Claude Code     │              │  Next.js（フロント）     │
 │   ↕ Obsidian     │              │        ↕                │
-│  （断片メモを読む）│◄────MCP─────►│  NestJS API            │
+│  （断片メモを読む）│◄────MCP─────►│  FastAPI               │
 └──────────────────┘   (トークン   │   + MCPサーバー         │
                         認証)      │   + チャネルアダプタ     │
                                    │        ↕                │

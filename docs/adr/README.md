@@ -32,8 +32,8 @@
 
 | # | タイトル | 状態 |
 |---|---|---|
-| [0001](0001-nestjs.md) | バックエンドフレームワークに NestJS を採用する | **採用** |
-| 0002 | ORM の選定（Prisma / TypeORM） | 未着手 |
+| [0001](0001-nestjs.md) | バックエンドフレームワークに NestJS を採用する | 置き換え済み（0012） |
+| 0002 | ORM の選定（SQLAlchemy 2.0 / SQLModel / Tortoise） | 未着手 |
 | 0003 | AWS 構成とコストの判断 | 未着手 |
 | [0004](0004-no-crdt.md) | 共同編集に CRDT（Yjs）を使わない | **採用** |
 | [0005](0005-channel-adapter.md) | 外部公開を3モードのアダプタで抽象化する | **採用** |
@@ -42,4 +42,6 @@
 | 0008 | 指標スナップショットのテーブル設計と性能 | 未着手 |
 | [0009](0009-layered-architecture.md) | レイヤー構成と依存方向 | **採用** |
 | [0010](0010-frontend-backend-separation.md) | フロントエンドとバックエンドを分離する | **採用** |
-| [0011](0011-async-jobs.md) | 非同期処理基盤に BullMQ + Redis を使う | **採用** |
+| [0011](0011-async-jobs.md) | 非同期処理基盤に BullMQ + Redis を使う | 置き換え済み（0013） |
+| [0012](0012-fastapi.md) | バックエンドフレームワークを NestJS から FastAPI に変更する | **採用** |
+| [0013](0013-async-jobs-python.md) | Python の非同期ジョブ基盤を選定する | 検討中 |

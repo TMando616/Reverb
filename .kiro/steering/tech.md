@@ -4,17 +4,28 @@
 
 | 領域 | 採用 | 備考 |
 |---|---|---|
-| バックエンド | **TypeScript / NestJS** | Laravel と構造が近い（DI・モジュール分割・デコレータ・ORM）→ ADR-0001 |
+| バックエンド | **Python / FastAPI** | OpenAPI 自動生成・MCP / Claude SDK の厚さ → ADR-0012 |
+| Python | **3.13 以上** | M0 でバージョンを固定する |
+| パッケージ管理 | **uv** | ロックファイルをコミットする |
 | DB | **PostgreSQL** | |
-| ORM | **未決** — Prisma / TypeORM | ADR-0002 で決める |
-| キュー | **BullMQ + Redis** | 日次指標取得・LLM 変換ジョブ → ADR-0011 |
+| ORM | **未決** — SQLAlchemy 2.0 / SQLModel / Tortoise | ADR-0002 で決める。マイグレーションは Alembic |
+| ジョブ基盤 | **未決** — Celery / ARQ / Dramatiq / Taskiq | ADR-0013 で決める（M2 着手前まで） |
 | リアルタイム | **WebSocket**（編集ロック・レビューコメント）／ **SSE**（ジョブ進捗） | 判断基準は「双方向が必要か」だけ → ADR-0006 |
 | フロントエンド | **Next.js 16 / React 19** | |
 | エディタ | **未決** — CodeMirror 6 / tiptap | **自作しない** |
-| LLM | **Claude API**（`claude-opus-5`） | 公式 SDK `@anthropic-ai/sdk` を使う |
-| MCP | サービス側に MCP サーバーエンドポイントを実装 | |
+| LLM | **Claude API**（`claude-opus-5`） | 公式 SDK `anthropic`（Python）を使う |
+| MCP | サービス側に MCP サーバーエンドポイントを実装 | 公式 Python SDK `mcp` |
 | インフラ | **AWS** | 構成とコストは未決（ADR-0003） |
 | CI/CD | **GitHub Actions** | lint / test / build → main マージでデプロイ |
+
+### ライブラリの選び方
+
+**知名度やデファクトであることを選定理由にしない。** 本プロジェクトの要件で選ぶ。
+
+- 選定は必ず ADR に残す。**却下した案を却下した理由も書く**
+- 「設計を引き受けてしまう」ライブラリは慎重に扱う。**このプロジェクトはバックエンドの設計そのものが成果物**であり、
+  ライブラリが全部やってくれる領域は成果物が残らない（→ ADR-0004 で Yjs を却下したのと同じ軸）
+- 逆に、**設計の対象でない領域は既製品を使う。** Markdown エディタを自作しないのはこの理由
 
 ## 【重要】Next.js 16 について
 
@@ -31,7 +42,18 @@ Controller → Service → Repository
 
 **下位レイヤーが上位を参照することは禁止。** Controller に業務ロジックを書かない。Repository に業務判断を持ち込まない。
 
-**Service は Request / Response を知らない。** `@Req()` を Service まで持ち込まないこと。持ち込むと HTTP に依存し、MCP サーバーとジョブから呼べなくなる。
+**Service は Request / Response を知らない。** FastAPI の `Request` / `Response` を Service まで持ち込まないこと。持ち込むと HTTP に依存し、MCP サーバーとジョブから呼べなくなる。
+
+### 【重要】層はフレームワークが守ってくれない
+
+NestJS と違い、**FastAPI は層構造を強制しない。**（ADR-0012）
+規約として自分で守る必要があるため、以下を仕組みで担保する。
+
+- **DI は FastAPI の `Depends` に寄せる。** Service を Router で直接 `import` して組み立てない
+- **ディレクトリで層を物理的に分ける**（structure.md）
+- **層をまたぐ import を CI で検出する。** `import-linter` の契約を置き、違反をテストと同じ扱いで落とす
+
+「気をつける」で守るのではなく、**壊れたら CI が赤くなる状態**にする。ここを省くと ADR-0009 が絵に描いた餅になる。
 
 理由の詳細は ADR-0009。**入り口が3つ（ブラウザ / MCP / ジョブ）あるため、業務ルールと認可を Service に集約しないと二重実装になる。**
 
@@ -94,8 +116,9 @@ Controller → Service → Repository
 
 ## 開発標準
 
-- **テスト**：ユニット（Service / Repository）＋ 結合（API エンドポイント）
-- **API 仕様**：OpenAPI で公開
+- **テスト**：`pytest` でユニット（Service / Repository）＋ 結合（API エンドポイント）
+- **Lint / Format**：`ruff`（lint + format）、`mypy`（型チェック）、`import-linter`（層の依存契約）
+- **API 仕様**：OpenAPI で公開（**FastAPI が自動生成する**。フロントの型はここから生成する）
 - **ADR**：設計判断は `docs/adr/` に残す。**時間が経つと「なぜこうしたか」は必ず忘れる**
 - **CC-SDD**：`.kiro/specs/` をリポジトリに含める（要件と設計の経緯を残すため）
 

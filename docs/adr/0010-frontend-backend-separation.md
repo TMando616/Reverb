@@ -3,6 +3,9 @@
 - **日付**: 2026-08-26
 - **ステータス**: 採用
 
+> **2026-08-29 追記（ADR-0012）：決定は変更なし。** API 側の実装が NestJS から FastAPI に変わっただけで、
+> 「分離する」理由（入り口が3つある／API が Next.js のランタイムに依存してはいけない）はそのまま成立する。
+
 ## 背景
 
 Next.js を使う以上、API を Next.js の Route Handlers に持たせて1つのアプリにまとめる選択肢がある。
@@ -10,7 +13,7 @@ Next.js を使う以上、API を Next.js の Route Handlers に持たせて1つ
 
 ## 選択肢
 
-1. **分離する** — Next.js（フロント）と NestJS（API）を別アプリにする
+1. **分離する** — Next.js（フロント）と FastAPI（API）を別アプリにする
 2. 統合する — Next.js の Route Handlers に API を持たせる
 
 ## 決定
@@ -19,7 +22,7 @@ Next.js を使う以上、API を Next.js の Route Handlers に持たせて1つ
 
 ```
 ブラウザ ──┐
-Claude Code ├──→ NestJS API ──→ PostgreSQL / Redis
+Claude Code ├──→ FastAPI  ──→ PostgreSQL / Redis
 ジョブ ─────┘
 ```
 

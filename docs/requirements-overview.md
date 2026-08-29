@@ -336,10 +336,10 @@ ingest_jobs / job_runs    取得ジョブ・リトライ・エラー履歴
 
 | 領域 | 採用 |
 |---|---|
-| バックエンド | **TypeScript / NestJS**（Controller → Service → Repository の一方向依存） |
+| バックエンド | **Python / FastAPI**（Controller → Service → Repository の一方向依存）→ ADR-0012 |
 | DB | PostgreSQL |
-| ORM | Prisma または TypeORM（未決） |
-| キュー | BullMQ + Redis |
+| ORM | SQLAlchemy 2.0 / SQLModel / Tortoise のいずれか（未決・ADR-0002）。マイグレーションは Alembic |
+| キュー | Redis ベースのジョブ基盤（未決・ADR-0013） |
 | リアルタイム | WebSocket（編集ロック・レビューコメント）／ SSE（ジョブ進捗） |
 | フロントエンド | **Next.js 16 / React 19** |
 | エディタ | CodeMirror 6 または tiptap（**自作しない**） |
@@ -357,7 +357,7 @@ ingest_jobs / job_runs    取得ジョブ・リトライ・エラー履歴
 ┌──────────────────┐              ┌────────────────────────┐
 │  Claude Code     │              │  Next.js（フロント）     │
 │   ↕ Obsidian     │              │        ↕                │
-│  （断片メモを読む）│◄────MCP─────►│  NestJS API            │
+│  （断片メモを読む）│◄────MCP─────►│  FastAPI               │
 └──────────────────┘   (トークン   │   + MCPサーバー         │
                         認証)      │   + チャネルアダプタ     │
                                    │        ↕                │
@@ -460,7 +460,7 @@ ingest_jobs / job_runs    取得ジョブ・リトライ・エラー履歴
 
 | 内訳 | h |
 |---|---|
-| 指標取得ジョブ（BullMQ・リトライ・レート制限）、SSE 進捗、ポッドキャスト RSS 取り込み | 30 |
+| 指標取得ジョブ（リトライ・レート制限）、SSE 進捗、ポッドキャスト RSS 取り込み | 30 |
 | ダッシュボードとウィンドウ関数の分析クエリ | 20 |
 | レビューコメント（リアルタイム）、セクション編集ロック、楽観ロック | 20 |
 
@@ -495,7 +495,8 @@ ingest_jobs / job_runs    取得ジョブ・リトライ・エラー履歴
 
 ## 13. 未決事項
 
-- [ ] ORM の選定（Prisma / TypeORM）→ ADR-0002
+- [ ] ORM の選定（SQLAlchemy 2.0 / SQLModel / Tortoise）→ ADR-0002
+- [ ] 非同期ジョブ基盤の選定（Celery / ARQ / Dramatiq / Taskiq）→ ADR-0013（M2 着手前まで）
 - [ ] AWS の構成と**月額コストの見積り**（ECS Fargate / Lightsail / EC2 のどれにするか）→ ADR-0003
 - [ ] エディタの選定（CodeMirror 6 / tiptap）
 - [ ] X / Instagram の API 現行仕様の確認（実装時）

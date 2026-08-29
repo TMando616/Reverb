@@ -97,7 +97,10 @@ Claude API を呼ぶコードを書く前に、**`/claude-api` スキルを読�
 
 ## アーキテクチャの要点
 
+**スタックは Python / FastAPI × Next.js 16。** バックエンドは NestJS から変更済み（ADR-0012）。
+
 **依存方向**：`Controller → Service → Repository`。下位が上位を参照することは禁止。
+**FastAPI は層構造を強制しない**ため、`.importlinter` の契約を CI で検証して守る。
 
 **共同編集に Yjs（CRDT）を使わない。** セクション単位の編集ロックと楽観ロックを自前で設計する（バックエンドの設計を成果物として残すため）。
 
@@ -115,9 +118,11 @@ Claude API を呼ぶコードを書く前に、**`/claude-api` スキルを読�
 # 全サービス起動
 docker compose up
 
-# バックエンド（コンテナ内）
-docker compose exec backend npm run test
-docker compose exec backend npm run lint
+# バックエンド（コンテナ内・Python / FastAPI）
+docker compose exec backend pytest
+docker compose exec backend ruff check .
+docker compose exec backend mypy .
+docker compose exec backend lint-imports   # 層の依存契約
 
 # フロントエンド（コンテナ内）
 docker compose exec frontend npm run lint
