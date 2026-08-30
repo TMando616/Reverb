@@ -8,7 +8,7 @@
 | Python | **3.13 以上** | M0 でバージョンを固定する |
 | パッケージ管理 | **uv** | ロックファイルをコミットする |
 | DB | **PostgreSQL** | |
-| ORM | **未決** — SQLAlchemy 2.0 / SQLModel / Tortoise | ADR-0002 で決める。マイグレーションは Alembic |
+| ORM | **SQLAlchemy 2.0**（async・ORM ＋ Core 併用） | ADR-0002。マイグレーションは Alembic |
 | ジョブ基盤 | **未決** — Celery / ARQ / Dramatiq / Taskiq | ADR-0013 で決める（M2 着手前まで） |
 | リアルタイム | **WebSocket**（編集ロック・レビューコメント）／ **SSE**（ジョブ進捗） | 判断基準は「双方向が必要か」だけ → ADR-0006 |
 | フロントエンド | **Next.js 16 / React 19** | |

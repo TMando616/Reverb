@@ -338,7 +338,7 @@ ingest_jobs / job_runs    取得ジョブ・リトライ・エラー履歴
 |---|---|
 | バックエンド | **Python / FastAPI**（Controller → Service → Repository の一方向依存）→ ADR-0012 |
 | DB | PostgreSQL |
-| ORM | SQLAlchemy 2.0 / SQLModel / Tortoise のいずれか（未決・ADR-0002）。マイグレーションは Alembic |
+| ORM | **SQLAlchemy 2.0**（async・ORM ＋ Core 併用）→ ADR-0002。マイグレーションは Alembic |
 | キュー | Redis ベースのジョブ基盤（未決・ADR-0013） |
 | リアルタイム | WebSocket（編集ロック・レビューコメント）／ SSE（ジョブ進捗） |
 | フロントエンド | **Next.js 16 / React 19** |
@@ -495,7 +495,7 @@ ingest_jobs / job_runs    取得ジョブ・リトライ・エラー履歴
 
 ## 13. 未決事項
 
-- [ ] ORM の選定（SQLAlchemy 2.0 / SQLModel / Tortoise）→ ADR-0002
+- [x] ORM の選定 → **SQLAlchemy 2.0**（ADR-0002）
 - [ ] 非同期ジョブ基盤の選定（Celery / ARQ / Dramatiq / Taskiq）→ ADR-0013（M2 着手前まで）
 - [ ] AWS の構成と**月額コストの見積り**（ECS Fargate / Lightsail / EC2 のどれにするか）→ ADR-0003
 - [ ] エディタの選定（CodeMirror 6 / tiptap）
