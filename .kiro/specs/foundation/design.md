@@ -605,6 +605,7 @@ sequenceDiagram
 ```ini
 [importlinter]
 root_package = app
+include_external_packages = True
 
 [importlinter:contract:layers]
 name = Controller -> Service -> Repository の一方向
@@ -655,6 +656,7 @@ forbidden_modules =
 | 項目 | 内容 |
 |---|---|
 | `containers` と `layers` の関係 | **`layers` は `containers` からの相対名**。`containers = app` のまま `layers` にフルパス（`app.modules.auth.router`）を書くと `app.app.modules...` を探して解決に失敗する。3モジュールを `containers` に並べ、`layers` は `router` / `service` / `repository` の3行だけにする |
+| `include_external_packages = True` | **`forbidden_modules` に `sqlalchemy` / `fastapi` / `starlette` という外部パッケージを指定しているため必須。** import-linter は外部パッケージを含む契約では、このフラグが無いと設定エラーで実行自体が落ちる（`The top level configuration must have include_external_packages=True ...`）。`root_package` と同じ `[importlinter]` セクションに置く |
 | `allow_indirect_imports = True` の理由 | **§7 で「Service は ORM モデルをそのまま受け取る」と決めたため。** `service.py` は型注釈で `models.py` を import し、`models.py` は `sqlalchemy` を import する。`forbidden` 契約は既定で**間接 import（連鎖）も違反**とするので、これを外さないと最初のモジュールを書いた瞬間に CI が赤くなる。この契約が守らせたいのは「Service が `AsyncSession` を握って直接クエリを書くこと」であって、モデルの型を知ることではない |
 | `core-independence` | §2-2 で追加した契約。`ProjectAuthorizer` が `ProjectMemberRepository` を直接 import すると落ちる。`Protocol` で受ける設計（§5-2）を CI で強制する |
 | `deps.py` が層に入っていない | `deps.py` は Router と Service の**組み立て役**で、両方を import するのが仕事。層に入れると必ず違反になるため意図的に対象外。代わりに「`deps.py` 以外から Repository を組み立てない」は目視で見る |

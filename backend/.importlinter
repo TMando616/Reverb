@@ -1,0 +1,46 @@
+[importlinter]
+root_package = app
+include_external_packages = True
+
+[importlinter:contract:layers]
+name = Controller -> Service -> Repository の一方向
+type = layers
+containers =
+    app.modules.auth
+    app.modules.projects
+    app.modules.contents
+layers =
+    router
+    service
+    repository
+
+[importlinter:contract:service-no-sqlalchemy]
+name = Service は sqlalchemy を直接 import しない
+type = forbidden
+source_modules =
+    app.modules.auth.service
+    app.modules.projects.service
+    app.modules.contents.service
+forbidden_modules =
+    sqlalchemy
+    app.core.db
+allow_indirect_imports = True
+
+[importlinter:contract:service-no-fastapi]
+name = Service は FastAPI を知らない
+type = forbidden
+source_modules =
+    app.modules.auth.service
+    app.modules.projects.service
+    app.modules.contents.service
+forbidden_modules =
+    fastapi
+    starlette
+
+[importlinter:contract:core-independence]
+name = core は modules を知らない
+type = forbidden
+source_modules =
+    app.core
+forbidden_modules =
+    app.modules
