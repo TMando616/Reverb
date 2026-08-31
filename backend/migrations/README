@@ -1,0 +1,6 @@
+Alembic マイグレーション。
+
+  uv run alembic revision --autogenerate -m "説明"
+  uv run alembic upgrade head
+
+autogenerate の出力は下書き。必ず目視で確認してからコミットする（ADR-0002 §影響）。
