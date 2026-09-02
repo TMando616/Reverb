@@ -24,14 +24,18 @@ class Base(DeclarativeBase):
 
 
 async def get_session() -> AsyncIterator[AsyncSession]:
-    """FastAPI dependency: one request-scoped session.
+    """FastAPI dependency: one request == one session == one transaction.
 
-    Commit/flush boundaries are the Service layer's responsibility
-    (design.md §4-4). This dependency only owns lifecycle + rollback.
+    Services flush but never commit (design.md §4-4). The single ``commit()``
+    lives here and runs only if the handler returned without raising. Because
+    FastAPI runs post-yield code after the response is sent, write-path Services
+    must ``flush()`` before returning so constraint / optimistic-lock errors
+    surface while the handler can still turn them into 4xx (design.md §4-4).
     """
     async with async_session() as session:
         try:
             yield session
+            await session.commit()
         except Exception:
             await session.rollback()
             raise
