@@ -23,7 +23,7 @@
 - [x] 1.3 `core/security.py`：Argon2id（`argon2-cffi` を依存に追加）で `hash_password` / `verify_password`。存在しない email 用のダミーハッシュ定数（§4-2）
 - [x] 1.4 `core/exceptions.py`：`design.md` §6-3 の体系へ置換（`AuthenticationError`=401 / `ForbiddenError`=403 / `NotFoundError`=404 / `VersionConflictError`=409 / `InvalidStateTransitionError`=422）
 - [x] 1.5 `core/exception_handlers.py`：`{ "error": { "code", "message" } }` 封筒に統一。`RequestValidationError` にも独自ハンドラ。commit 失敗（500）はログに残す
-- [ ] 1.6 `core/authorization.py`：`Actor` 値オブジェクト、`Permission` StrEnum、`ROLE_PERMISSIONS` / `VIEW_ONLY`、`MemberRoleReader` Protocol、`ProjectAuthorizer.require`、`require_not_demo`
+- [x] 1.6 `core/authorization.py`：`Actor` 値オブジェクト、`Permission` StrEnum、`ROLE_PERMISSIONS` / `VIEW_ONLY`、`MemberRoleReader` Protocol、`ProjectAuthorizer.require`、`require_not_demo`
 - [ ] 1.7 ユニットテスト：`ProjectAuthorizer`（role なし→404 / 権限なし→403 / demo は `VIEW_ONLY` 積集合）、`require_not_demo`
 - [ ] 1.8 `ruff` / `mypy` / `lint-imports` 緑を確認（`core` が `modules` を import しないこと）
 
