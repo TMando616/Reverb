@@ -11,15 +11,21 @@ __pycache__/
 node_modules/
 .next/
 out/
-npm-debug.log*
+
+# ログ
+*.log
 
 # 環境変数
 .env
 .env.local
 .env.*.local
+!.env.example
 
 # OS / エディタ
 .DS_Store
 *.swp
 .idea/
 .vscode/
+
+# Claude Code のマシン固有設定
+.claude/settings.local.json
