@@ -31,10 +31,10 @@
 
 - [x] 2.1 `auth/models.py`：`users`（`email` UK / `password_hash` / `display_name` / `is_demo`）、`sessions`（`token_hash` UK / `expires_at` / `revoked_at`）
 - [ ] 2.2 Alembic 初回マイグレーション生成 → 目視 → `upgrade head`
-- [ ] 2.3 `auth/repository.py`：`UserRepository`（email 検索・作成）、`SessionRepository`（作成 / `find_valid_with_user` は `users` を `selectinload` で join / revoke）
-- [ ] 2.4 `auth/service.py`：`AuthService.login`（user が無くてもダミーハッシュ検証してから 401・§4-2 / トークン発行 / `sha256` を `sessions` に保存 / 期限 14日）、`logout`（`revoked_at` を打つ）
-- [ ] 2.5 `auth/deps.py`：`get_current_actor`（`Header(default=None)` で受け欠落は 401・§4-3 / Bearer パース / `sha256` 照合 / `Actor` を返す）
-- [ ] 2.6 `auth/schemas.py` + `auth/router.py`：`POST /auth/login` / `POST /auth/logout` / `GET /auth/me`。`main.py` に登録
+- [x] 2.3 `auth/repository.py`：`UserRepository`（email 検索・作成）、`SessionRepository`（作成 / `find_valid_with_user` は `users` を `selectinload` で join / revoke）
+- [x] 2.4 `auth/service.py`：`AuthService.login`（user が無くてもダミーハッシュ検証してから 401・§4-2 / トークン発行 / `sha256` を `sessions` に保存 / 期限 14日）、`logout`（`revoked_at` を打つ）
+- [x] 2.5 `auth/deps.py`：`get_current_actor`（`Header(default=None)` で受け欠落は 401・§4-3 / Bearer パース / `sha256` 照合 / `Actor` を返す）
+- [x] 2.6 `auth/schemas.py` + `auth/router.py`：`POST /auth/login` / `POST /auth/logout` / `GET /auth/me`。`main.py` に登録
 - [ ] 2.7 ユニットテスト：誤資格情報→401 / 有効トークンで保護 API 通過 / 失効・期限切れ→401 / 存在しない email でもダミーハッシュ検証が呼ばれる（列挙対策）
 
 ## 3. projects モジュール — 企画・メンバー・認可（F4 / F5 / F2 / F3）
