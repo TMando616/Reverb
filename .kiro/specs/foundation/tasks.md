@@ -42,7 +42,7 @@
 - [x] 3.1 `projects/models.py`：`projects`（`created_by`）、`project_members`（`role` 文字列 + `UNIQUE(project_id,user_id)` + CHECK）、`invitations`（`token_hash` UK / `email` nullable / `role` / `expires_at` / `accepted_at` / `accepted_user_id`）
 - [ ] 3.2 マイグレーション生成 → 目視 → `upgrade head`。インデックス（`project_members(user_id)` / `invitations(token_hash)`）
 - [x] 3.3 `projects/repository.py`：`ProjectRepository`（作成 / 自分がメンバーの企画一覧 / id 取得）、`ProjectMemberRepository`（`role_of` = `MemberRoleReader` を構造的に満たす / メンバー一覧 / owner 行を `SELECT ... FOR UPDATE` で数える / 追加は `ON CONFLICT DO NOTHING` / role 更新 / 削除）
-- [ ] 3.4 `ProjectService`：`create`（`require_not_demo` → `projects` + `project_members`(owner) を1トランザクション / flush）、`list_mine`、`get`（`authz.require(PROJECT_VIEW)` → 非メンバーは 404 / 自分の role 付き）
+- [x] 3.4 `ProjectService`：`create`（`require_not_demo` → `projects` + `project_members`(owner) を1トランザクション / flush）、`list_mine`、`get`（`authz.require(PROJECT_VIEW)` → 非メンバーは 404 / 自分の role 付き）
 - [ ] 3.5 `MemberService`：`invite`（`PROJECT_MANAGE_MEMBERS` / token 生成 / `sha256` 保存 / 受諾 URL を返す / 期限 7日）、`list_members`、`change_role`（最後の owner 降格ガード・§9-3）、`remove`（最後の owner 除名ガード）
 - [ ] 3.6 `InvitationService.accept`：`token_hash` で引く → 無効 / 期限切れ / 受諾済みは一律 404（§6-3）／未ログイン未登録は `display_name`+`password` で `users` 作成／既ログイン demo は 403（§5-3）／`project_members` へ `DO NOTHING`（§9-2）／`accepted_at` 更新。レスポンスは既存 role を返す
 - [ ] 3.7 ルーター：`GET/POST /projects`、`GET /projects/{id}`、`POST /projects/{id}/invitations`、`GET /projects/{id}/members`、`PATCH/DELETE /projects/{id}/members/{user_id}`、`POST /invitations/{token}/accept`
