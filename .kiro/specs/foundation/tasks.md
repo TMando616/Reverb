@@ -45,7 +45,7 @@
 - [x] 3.4 `ProjectService`：`create`（`require_not_demo` → `projects` + `project_members`(owner) を1トランザクション / flush）、`list_mine`、`get`（`authz.require(PROJECT_VIEW)` → 非メンバーは 404 / 自分の role 付き）
 - [x] 3.5 `MemberService`：`invite`（`PROJECT_MANAGE_MEMBERS` / token 生成 / `sha256` 保存 / 受諾 URL を返す / 期限 7日）、`list_members`、`change_role`（最後の owner 降格ガード・§9-3）、`remove`（最後の owner 除名ガード）
 - [x] 3.6 `InvitationService.accept`：`token_hash` で引く → 無効 / 期限切れ / 受諾済みは一律 404（§6-3）／未ログイン未登録は `display_name`+`password` で `users` 作成／既ログイン demo は 403（§5-3）／`project_members` へ `DO NOTHING`（§9-2）／`accepted_at` 更新。レスポンスは既存 role を返す
-- [ ] 3.7 ルーター：`GET/POST /projects`、`GET /projects/{id}`、`POST /projects/{id}/invitations`、`GET /projects/{id}/members`、`PATCH/DELETE /projects/{id}/members/{user_id}`、`POST /invitations/{token}/accept`
+- [x] 3.7 ルーター：`GET/POST /projects`、`GET /projects/{id}`、`POST /projects/{id}/invitations`、`GET /projects/{id}/members`、`PATCH/DELETE /projects/{id}/members/{user_id}`、`POST /invitations/{token}/accept`
 - [ ] 3.8 ユニットテスト：非 owner が招待 / ロール変更 / 除名→403 ／非メンバーの企画取得→404 ／最後の owner 降格・除名→403 ／既存メンバーが別ロール招待を受諾しても role 不変（§9-2）／demo が企画作成→403 ／期限切れ招待→404
 
 ## 4. CLI bootstrap（§9-0 / F2・F3 の払い出し経路）
