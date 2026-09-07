@@ -109,6 +109,8 @@ class ProjectMemberRepository:
         await self._session.flush()
 
     async def update_role(self, project_id: int, user_id: int, role: Role) -> None:
+        # synchronize_session keeps an already-loaded ProjectMember in the
+        # identity map consistent, so the caller can return it as-is.
         await self._session.execute(
             update(ProjectMember)
             .where(
@@ -116,15 +118,18 @@ class ProjectMemberRepository:
                 ProjectMember.user_id == user_id,
             )
             .values(role=role.value)
+            .execution_options(synchronize_session="evaluate")
         )
         await self._session.flush()
 
     async def remove(self, project_id: int, user_id: int) -> None:
         await self._session.execute(
-            delete(ProjectMember).where(
+            delete(ProjectMember)
+            .where(
                 ProjectMember.project_id == project_id,
                 ProjectMember.user_id == user_id,
             )
+            .execution_options(synchronize_session="evaluate")
         )
         await self._session.flush()
 
