@@ -17,8 +17,9 @@ from app.core.authorization import (
     Role,
     require_not_demo,
 )
-from app.core.exceptions import ForbiddenError, NotFoundError
-from app.core.security import generate_token, hash_token
+from app.core.exceptions import AuthenticationError, ForbiddenError, NotFoundError
+from app.core.security import generate_token, hash_password, hash_token
+from app.modules.auth.repository import UserRepository
 from app.modules.projects.models import Invitation, Project, ProjectMember
 from app.modules.projects.repository import (
     InvitationRepository,
@@ -176,3 +177,81 @@ class MemberService:
         # demotion / removal cannot slip the count below one (design.md §9-3).
         if await self._members.lock_and_count_owners(project_id) <= 1:
             raise ForbiddenError("cannot demote or remove the last owner")
+
+
+@dataclass(frozen=True, slots=True)
+class AcceptResult:
+    """What acceptance yields: which project, and the caller's *effective* role
+    — which is the pre-existing one when they were already a member (§9-2).
+    """
+
+    project_id: int
+    role: Role
+
+
+class InvitationService:
+    def __init__(
+        self,
+        invitations: InvitationRepository,
+        members: ProjectMemberRepository,
+        users: UserRepository,
+    ) -> None:
+        self._invitations = invitations
+        self._members = members
+        self._users = users
+
+    async def accept(
+        self,
+        actor: Actor | None,
+        token: str,
+        *,
+        display_name: str | None,
+        password: str | None,
+    ) -> AcceptResult:
+        """Accept an invitation (design.md §9-1).
+
+        The token is the authorization. Invalid / expired / already-accepted all
+        collapse to one 404 so a probe cannot tell them apart (§6-3). An already
+        logged-in demo account is refused (§5-3). An anonymous caller registers
+        with the invitation's target email; an existing role is never overwritten
+        (§9-2), so the response carries whatever role the member actually holds.
+        """
+        invitation = await self._invitations.find_valid_by_token_hash(hash_token(token))
+        if invitation is None:
+            raise NotFoundError("invitation")
+
+        if actor is not None:
+            if actor.is_demo:
+                raise ForbiddenError("demo account is read-only")
+            user_id = actor.user_id
+        else:
+            user_id = await self._register_acceptor(invitation, display_name, password)
+
+        await self._members.add(
+            project_id=invitation.project_id,
+            user_id=user_id,
+            role=Role(invitation.role),
+        )
+        await self._invitations.mark_accepted(invitation.id, accepted_user_id=user_id)
+
+        effective_role = await self._members.role_of(user_id, invitation.project_id)
+        assert effective_role is not None  # membership was just ensured
+        return AcceptResult(project_id=invitation.project_id, role=effective_role)
+
+    async def _register_acceptor(
+        self, invitation: Invitation, display_name: str | None, password: str | None
+    ) -> int:
+        # A link invitation with no target email can only be accepted by an
+        # already-signed-in user; there is no address to register under.
+        if invitation.email is None:
+            raise AuthenticationError("sign in to accept this invitation")
+        if not display_name or not password:
+            raise AuthenticationError("display_name and password are required to register")
+        if await self._users.get_by_email(invitation.email) is not None:
+            raise AuthenticationError("an account already exists for this email; sign in first")
+        user = await self._users.create(
+            email=invitation.email,
+            password_hash=hash_password(password),
+            display_name=display_name,
+        )
+        return user.id
