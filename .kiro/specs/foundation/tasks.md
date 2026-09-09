@@ -50,10 +50,10 @@
 
 ## 4. CLI bootstrap（§9-0 / F2・F3 の払い出し経路）
 
-- [ ] 4.1 `app/cli.py`：`async with async_session()` を自前で開く土台。`AuthService` / リポジトリ経由で行う（SQL 直書き禁止）
-- [ ] 4.2 `create-user --email --display-name [--demo]`（パスワードは対話入力または自動生成して1回だけ標準出力）
-- [ ] 4.3 `add-member --project --user --role` / `accept-invitation --token ...`
-- [ ] 4.4 `CLAUDE.md`「よく使うコマンド」を実コマンドへ更新
+- [x] 4.1 `app/cli.py`：`async with async_session()` を自前で開く土台。`AuthService` / リポジトリ経由で行う（SQL 直書き禁止）
+- [x] 4.2 `create-user --email --display-name [--demo]`（パスワードは対話入力または自動生成して1回だけ標準出力）
+- [x] 4.3 `add-member --project --user --role` / `accept-invitation --token ...`
+- [x] 4.4 `CLAUDE.md`「よく使うコマンド」を実コマンドへ更新
 
 ## 5. contents モジュール — CRUD と楽観ロック（F6）
 
