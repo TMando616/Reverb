@@ -117,19 +117,48 @@ Claude API を呼ぶコードを書く前に、**`/claude-api` スキルを読�
 
 ## よく使うコマンド
 
+依存は `uv` が管理しているため、コンテナ内のコマンドは **`uv run` を前に付ける**。
+
 ```bash
 # 全サービス起動
 docker compose up
 
 # バックエンド（コンテナ内・Python / FastAPI）
-docker compose exec backend pytest
-docker compose exec backend ruff check .
-docker compose exec backend mypy .
-docker compose exec backend lint-imports   # 層の依存契約
+docker compose exec backend uv run pytest
+docker compose exec backend uv run ruff format .        # 整形
+docker compose exec backend uv run ruff check .         # lint（--fix で自動修正）
+docker compose exec backend uv run mypy .
+docker compose exec backend uv run lint-imports         # 層の依存契約
 
-# フロントエンド（コンテナ内）
-docker compose exec frontend npm run lint
-docker compose exec frontend npm run build
+# マイグレーション
+docker compose exec backend uv run alembic current
+docker compose exec backend uv run alembic upgrade head
+docker compose exec backend uv run alembic revision --autogenerate -m "message"
 ```
 
-※ 環境構築（M0）完了後に実際のコマンドへ更新すること。
+### bootstrap CLI（HTTP を経由しない管理操作・`design.md` §9-0）
+
+自己登録 API が無いため、**最初のユーザーはここからしか作れない**。
+パスワードは引数で渡さず、対話入力するか `--generate-password` で自動生成する（1回だけ標準出力に出る）。
+
+```bash
+# 最初のオーナー / デモアカウント
+docker compose exec backend uv run python -m app.cli create-user \
+    --email owner@example.com --display-name まんどぅ
+docker compose exec backend uv run python -m app.cli create-user \
+    --email demo@example.com --display-name デモ --demo
+
+# 企画へ直接メンバーを追加する（デモアカウントの参加経路）
+docker compose exec backend uv run python -m app.cli add-member \
+    --project 1 --user 2 --role reviewer
+
+# 招待リンクを既存ユーザーとして受諾する（demo は 403。add-member を使う）
+docker compose exec backend uv run python -m app.cli accept-invitation \
+    --token <token> --email owner@example.com
+```
+
+※ TTY が無い実行（`docker compose exec -T` / CI）では対話プロンプトを出せないため `--generate-password` が必須。
+
+### フロントエンド
+
+`frontend/` は `tasks.md` §8 で作成する。コマンドはその時点で追記する。
