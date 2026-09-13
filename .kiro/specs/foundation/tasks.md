@@ -58,7 +58,7 @@
 ## 5. contents モジュール — CRUD と楽観ロック（F6）
 
 - [x] 5.1 `contents/models.py`：`contents`（`project_id` / `title` / `body_md` / `status` 文字列 + CHECK / `version` / `deleted_at`）、`__mapper_args__ = {"version_id_col": version}`。`content_status_transitions`（`content_id` / `from_status` / `to_status` / `actor_user_id`）
-- [ ] 5.2 マイグレーション生成 → 目視 → `upgrade head`。`contents(project_id, status)` インデックス
+- [x] 5.2 マイグレーション生成 → 目視 → `upgrade head`。`contents(project_id, status)` インデックス
 - [ ] 5.3 `contents/repository.py`：`ContentRepository`（`get(content_id, project_id)` で必ず project スコープ / `list(project_id, status?)` / 既定で `deleted_at IS NULL`）、`ContentTransitionRepository`（追記のみ）
 - [ ] 5.4 `ContentService`：`create`（`CONTENT_WRITE` / 初期 status=`inbox` / flush）、`get`、`list`、`update`（`CONTENT_WRITE` / project スコープ取得 / `expected_version` 照合不一致 409 / flush）、`delete`（論理削除 / flush）
 - [ ] 5.5 二段楽観ロック：明示 version 照合 ＋ flush 時 `StaleDataError` を捕捉して 409（§3-3）
