@@ -4,6 +4,7 @@ from fastapi import FastAPI
 
 from app.core.exception_handlers import register_exception_handlers
 from app.modules.auth.router import router as auth_router
+from app.modules.contents.router import router as contents_router
 from app.modules.projects.router import invitations_router
 from app.modules.projects.router import router as projects_router
 
@@ -19,8 +20,7 @@ def create_app() -> FastAPI:
     app.include_router(auth_router)
     app.include_router(projects_router)
     app.include_router(invitations_router)
-    # Remaining module routers are registered here as the foundation spec lands them:
-    # app.include_router(contents.router.router)
+    app.include_router(contents_router)
     return app
 
 
