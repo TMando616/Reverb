@@ -63,7 +63,7 @@
 - [x] 5.4 `ContentService`：`create`（`CONTENT_WRITE` / 初期 status=`inbox` / flush）、`get`、`list`、`update`（`CONTENT_WRITE` / project スコープ取得 / `expected_version` 照合不一致 409 / flush）、`delete`（論理削除 / flush）
 - [x] 5.5 二段楽観ロック：明示 version 照合 ＋ flush 時 `StaleDataError` を捕捉して 409（§3-3）
 - [x] 5.6 ルーター：`GET/POST /projects/{id}/contents`、`GET/PATCH/DELETE /projects/{id}/contents/{cid}`。`PATCH` は `expected_version` 必須
-- [ ] 5.7 ユニットテスト：reviewer / demo の作成・更新・削除→403 ／他企画の `cid` 指定→404（Repository スコープ）／古い version→409 ／論理削除済みは一覧に出ない ／同一内容 PATCH で version 据え置きでも競合検出は壊れない（§3-3）
+- [x] 5.7 ユニットテスト：reviewer / demo の作成・更新・削除→403 ／他企画の `cid` 指定→404（Repository スコープ）／古い version→409 ／論理削除済みは一覧に出ない ／同一内容 PATCH で version 据え置きでも競合検出は壊れない（§3-3）
 
 ## 6. コンテンツの状態遷移（F7）
 
