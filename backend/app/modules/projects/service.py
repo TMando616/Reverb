@@ -1,9 +1,9 @@
-"""Business rules and authorization for the projects module (企画・メンバー・招待).
+"""projects モジュールの業務ルールと認可（企画・メンバー・招待）。
 
-Knows nothing about HTTP (no ``fastapi`` / ``Request``) and never holds an
-``AsyncSession`` directly — repositories are injected in (design.md §2-2).
-Authorization is an explicit first line in each method, not a ``Depends`` guard,
-so an MCP / job caller runs the same checks (design.md §5-2, F5).
+HTTP のことは知らない（``fastapi`` / ``Request`` は import しない）し、
+``AsyncSession`` を直接持つこともない ── repository は注入される（design.md §2-2）。
+認可は ``Depends`` によるガードではなく、各メソッドの明示的な最初の一文なので、
+MCP やジョブからの呼び出しも同じチェックを通る（design.md §5-2、F5）。
 """
 
 from collections.abc import Sequence
@@ -27,14 +27,14 @@ from app.modules.projects.repository import (
     ProjectRepository,
 )
 
-# Link-only invitations expire 7 days after issue (design.md §9-1).
+# リンク方式の招待は発行から7日で期限切れ（design.md §9-1）。
 INVITATION_TTL = timedelta(days=7)
 
 
 @dataclass(frozen=True, slots=True)
 class ProjectWithRole:
-    """A project paired with the caller's role in it — the shape every
-    project-returning endpoint needs (design.md §6-1).
+    """企画と、その中での呼び出し元の role の組 ── 企画を返すすべての
+    エンドポイントが必要とする形（design.md §6-1）。
     """
 
     project: Project
@@ -53,11 +53,11 @@ class ProjectService:
         self._authz = authz
 
     async def create(self, actor: Actor, *, name: str) -> ProjectWithRole:
-        """Create a project and enrol the creator as its ``owner``.
+        """企画を作成し、作成者を ``owner`` として登録する。
 
-        Both rows land in the one request transaction (design.md §4-4). Demo
-        accounts cannot create — there is no ``project_id`` yet for the project
-        authorizer to judge, so the standalone guard applies (design.md §5-3).
+        両方の行が1つのリクエストトランザクションに収まる（design.md §4-4）。
+        demo アカウントは作成できない ── まだ ``project_id`` が存在せず
+        project の認可器が判断できないので、単独のガードを使う（design.md §5-3）。
         """
         require_not_demo(actor)
         project = await self._projects.create(name=name, created_by=actor.user_id)
@@ -65,15 +65,15 @@ class ProjectService:
         return ProjectWithRole(project=project, role=Role.OWNER)
 
     async def list_mine(self, actor: Actor) -> Sequence[ProjectWithRole]:
-        """Projects the caller belongs to. Non-membership just means an empty
-        list here — there is no project to hide (design.md §6-1).
+        """呼び出し元が所属する企画。非所属はここでは単に空リストになる ──
+        隠すべき企画は無い（design.md §6-1）。
         """
         rows = await self._projects.list_for_user(actor.user_id)
         return [ProjectWithRole(project=project, role=role) for project, role in rows]
 
     async def get(self, actor: Actor, project_id: int) -> ProjectWithRole:
-        """One project. A non-member gets 404, not 403 — the project's
-        existence is hidden (design.md §5-2).
+        """企画1件。非メンバーには 403 ではなく 404 を返す ── 企画の存在自体を
+        隠す（design.md §5-2）。
         """
         role = await self._authz.require(actor, project_id, Permission.PROJECT_VIEW)
         project = await self._projects.get(project_id)
@@ -84,8 +84,8 @@ class ProjectService:
 
 @dataclass(frozen=True, slots=True)
 class InvitationCreated:
-    """The issued invitation plus the relative accept path the owner hands over
-    (M0 has no mail delivery, design.md §9-1).
+    """発行した招待と、owner が受諾者に手渡す相対パス（M0 にメール送信は無い、
+    design.md §9-1）。
     """
 
     invitation: Invitation
@@ -94,7 +94,7 @@ class InvitationCreated:
 
 @dataclass(frozen=True, slots=True)
 class MemberView:
-    """A member row joined with its user, for the members list (design.md §6-1)."""
+    """メンバーの行と user を結合したもの。メンバー一覧のための形（design.md §6-1）。"""
 
     user_id: int
     display_name: str
@@ -117,8 +117,8 @@ class MemberService:
     async def invite(
         self, actor: Actor, project_id: int, *, role: Role, email: str | None
     ) -> InvitationCreated:
-        """Issue a link invitation. Only ``sha256(token)`` is stored; the raw
-        token lives only in the returned path (design.md §9-1).
+        """リンク方式の招待を発行する。保存するのは ``sha256(token)`` だけで、
+        生のトークンは戻り値のパスにだけ存在する（design.md §9-1）。
         """
         await self._authz.require(actor, project_id, Permission.PROJECT_MANAGE_MEMBERS)
         token = generate_token()
@@ -149,9 +149,9 @@ class MemberService:
     async def change_role(
         self, actor: Actor, project_id: int, user_id: int, *, role: Role
     ) -> ProjectMember:
-        """Change a member's role. Demoting the sole remaining owner is refused
-        (design.md §9-3); role changes never flow through invitation acceptance
-        (§9-2), so this is the only path that needs the guard.
+        """メンバーの role を変更する。最後に残った owner の降格は拒否する
+        （design.md §9-3）。role の変更は招待受諾からは決して発生しない（§9-2）
+        ので、このガードが要るのはこの経路だけ。
         """
         await self._authz.require(actor, project_id, Permission.PROJECT_MANAGE_MEMBERS)
         member = await self._members.get(project_id, user_id)
@@ -163,7 +163,7 @@ class MemberService:
         return member
 
     async def remove(self, actor: Actor, project_id: int, user_id: int) -> None:
-        """Remove a member. Removing the sole remaining owner is refused (§9-3)."""
+        """メンバーを除名する。最後に残った owner の除名は拒否する（§9-3）。"""
         await self._authz.require(actor, project_id, Permission.PROJECT_MANAGE_MEMBERS)
         member = await self._members.get(project_id, user_id)
         if member is None:
@@ -173,16 +173,16 @@ class MemberService:
         await self._members.remove(project_id, user_id)
 
     async def _guard_not_last_owner(self, project_id: int) -> None:
-        # Owner rows are locked FOR UPDATE before counting so a concurrent
-        # demotion / removal cannot slip the count below one (design.md §9-3).
+        # owner 行を数える前に FOR UPDATE でロックすることで、同時に走った
+        # 降格・除名がカウントを1未満にすり抜けさせない（design.md §9-3）。
         if await self._members.lock_and_count_owners(project_id) <= 1:
             raise ForbiddenError("cannot demote or remove the last owner")
 
 
 @dataclass(frozen=True, slots=True)
 class AcceptResult:
-    """What acceptance yields: which project, and the caller's *effective* role
-    — which is the pre-existing one when they were already a member (§9-2).
+    """受諾の結果：どの企画か、そして呼び出し元の*実効*role ── すでに
+    メンバーだった場合はその既存の role（§9-2）。
     """
 
     project_id: int
@@ -208,13 +208,13 @@ class InvitationService:
         display_name: str | None,
         password: str | None,
     ) -> AcceptResult:
-        """Accept an invitation (design.md §9-1).
+        """招待を受諾する（design.md §9-1）。
 
-        The token is the authorization. Invalid / expired / already-accepted all
-        collapse to one 404 so a probe cannot tell them apart (§6-3). An already
-        logged-in demo account is refused (§5-3). An anonymous caller registers
-        with the invitation's target email; an existing role is never overwritten
-        (§9-2), so the response carries whatever role the member actually holds.
+        トークン自体が認可。無効・期限切れ・受諾済みはすべて同じ404に収束させ、
+        探りを入れても区別できないようにする（§6-3）。既にログイン済みの demo
+        アカウントは拒否する（§5-3）。未ログインの呼び出し元は招待先の email で
+        登録する。既存の role は決して上書きしない（§9-2）ので、レスポンスには
+        メンバーが実際に保持している role が乗る。
         """
         invitation = await self._invitations.find_valid_by_token_hash(hash_token(token))
         if invitation is None:
@@ -235,14 +235,14 @@ class InvitationService:
         await self._invitations.mark_accepted(invitation.id, accepted_user_id=user_id)
 
         effective_role = await self._members.role_of(user_id, invitation.project_id)
-        assert effective_role is not None  # membership was just ensured
+        assert effective_role is not None  # 直前でメンバーシップを保証済み
         return AcceptResult(project_id=invitation.project_id, role=effective_role)
 
     async def _register_acceptor(
         self, invitation: Invitation, display_name: str | None, password: str | None
     ) -> int:
-        # A link invitation with no target email can only be accepted by an
-        # already-signed-in user; there is no address to register under.
+        # 送信先メールの無いリンク招待は、既にログイン済みのユーザーしか
+        # 受諾できない ── 登録先のアドレスが無いため。
         if invitation.email is None:
             raise AuthenticationError("sign in to accept this invitation")
         if not display_name or not password:

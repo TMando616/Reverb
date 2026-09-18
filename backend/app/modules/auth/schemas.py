@@ -1,7 +1,7 @@
-"""Pydantic request/response schemas for the auth module.
+"""auth モジュールの Pydantic リクエスト/レスポンススキーマ。
 
-Kept separate from models.py on purpose: the shape of the API contract and the
-shape of a table change for different reasons (structure.md, ADR-0002 §理由3).
+models.py とは意図的に分けている：API 契約の形とテーブルの形は変わる理由が
+異なるため（structure.md、ADR-0002 §理由3）。
 """
 
 from datetime import datetime
@@ -15,7 +15,7 @@ class LoginRequest(BaseModel):
 
 
 class UserOut(BaseModel):
-    """The caller summary embedded in the login response (design.md §6-2)."""
+    """ログインレスポンスに埋め込む呼び出し元の要約（design.md §6-2）。"""
 
     model_config = ConfigDict(from_attributes=True)
 

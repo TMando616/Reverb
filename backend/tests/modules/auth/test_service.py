@@ -1,4 +1,4 @@
-"""Unit tests for ``AuthService`` (design.md §4-1 / §4-2, tasks.md §2.7)."""
+"""``AuthService`` のユニットテスト（design.md §4-1 / §4-2、tasks.md §2.7）。"""
 
 from datetime import UTC, datetime
 
@@ -31,8 +31,8 @@ async def test_login_with_wrong_password_is_401() -> None:
 async def test_login_with_unknown_email_still_verifies_a_dummy_hash(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    # Enumeration guard (design.md §4-2): the unknown-email branch must spend the
-    # same Argon2 cost as a real check.
+    # 列挙対策（design.md §4-2）：email が未登録の分岐でも、実在チェックと
+    # 同じ Argon2 コストを払わなければならない。
     calls: list[str] = []
 
     def spy(hashed: str, password: str) -> bool:
@@ -61,7 +61,7 @@ async def test_login_success_stores_only_the_token_hash_and_a_14_day_expiry() ->
     stored = sessions.created[0]
     assert stored.user_id == user.id
     assert stored.token_hash == hash_token(result.token)
-    assert stored.token_hash != result.token  # raw token is never persisted
+    assert stored.token_hash != result.token  # 生のトークンは決して永続化されない
     assert result.expires_at == stored.expires_at
     assert abs((result.expires_at - (before + SESSION_TTL)).total_seconds()) < 5
 

@@ -1,7 +1,7 @@
-"""Dependency wiring for the contents module.
+"""contents モジュールの dependency 組み立て。
 
-The assembly role: allowed to import both router-facing and repository-facing
-code, so it is intentionally excluded from the layers contract (design.md §11).
+組み立て役：router 側・repository 側どちらのコードも import してよいので、
+層の依存契約からは意図的に除外している（design.md §11）。
 """
 
 from typing import Annotated
@@ -21,7 +21,7 @@ SessionDep = Annotated[AsyncSession, Depends(get_session)]
 def get_content_service(session: SessionDep) -> ContentService:
     return ContentService(
         contents=ContentRepository(session),
-        # ProjectMemberRepository satisfies MemberRoleReader structurally (design.md §5-2).
+        # ProjectMemberRepository は構造的に MemberRoleReader を満たす（design.md §5-2）。
         authz=ProjectAuthorizer(ProjectMemberRepository(session)),
         transitions=ContentTransitionRepository(session),
     )

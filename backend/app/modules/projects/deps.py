@@ -1,7 +1,7 @@
-"""Dependency wiring for the projects module.
+"""projects モジュールの dependency 組み立て。
 
-The assembly role: allowed to import both router-facing and repository-facing
-code, so it is intentionally excluded from the layers contract (design.md §11).
+組み立て役：router 側・repository 側どちらのコードも import してよいので、
+層の依存契約からは意図的に除外している（design.md §11）。
 """
 
 from typing import Annotated
@@ -25,7 +25,7 @@ SessionDep = Annotated[AsyncSession, Depends(get_session)]
 
 
 def _authorizer(session: AsyncSession) -> ProjectAuthorizer:
-    # ProjectMemberRepository satisfies MemberRoleReader structurally (design.md §5-2).
+    # ProjectMemberRepository は構造的に MemberRoleReader を満たす（design.md §5-2）。
     return ProjectAuthorizer(ProjectMemberRepository(session))
 
 
@@ -57,11 +57,11 @@ async def get_optional_actor(
     session: SessionDep,
     authorization: Annotated[str | None, Header()] = None,
 ) -> Actor | None:
-    """Resolve the caller if a bearer token is present, else ``None``.
+    """bearer トークンがあれば呼び出し元を解決し、無ければ ``None``。
 
-    ``POST /invitations/{token}/accept`` is reachable while signed out — the
-    token is the authorization (design.md §6-1). A header that *is* sent but
-    malformed / stale is still a 401, matching ``auth.deps`` (design.md §4-3).
+    ``POST /invitations/{token}/accept`` は未ログインでも叩ける ── トークン
+    自体が認可の代わりになる（design.md §6-1）。ヘッダーが*送られてはいるが*
+    不正・失効している場合は、``auth.deps`` と同様に 401 になる（design.md §4-3）。
     """
     if authorization is None:
         return None

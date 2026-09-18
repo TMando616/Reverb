@@ -1,8 +1,8 @@
-"""Password hashing (Argon2id) and opaque session-token helpers.
+"""パスワードハッシュ（Argon2id）とオペークなセッショントークンのヘルパー。
 
-- Passwords: Argon2id via ``argon2-cffi`` (design.md §4-2).
-- Session token: opaque random string; only its sha256 is stored server-side
-  (design.md §4-1). The raw token is returned to the client once.
+- パスワード：``argon2-cffi`` による Argon2id（design.md §4-2）。
+- セッショントークン：オペークなランダム文字列。サーバー側で保持するのは
+  sha256 だけ（design.md §4-1）。生のトークンはクライアントに1回だけ返す。
 """
 
 import hashlib
@@ -13,19 +13,19 @@ from argon2.exceptions import InvalidHashError, VerificationError, VerifyMismatc
 
 _hasher = PasswordHasher()
 
-# Fixed Argon2id hash verified against when the email is unknown, so login
-# spends the same CPU cost either way and timing can't reveal whether an
-# address is registered (design.md §4-2). Computed once at import.
+# email が未登録のときに検証する固定の Argon2id ハッシュ。これにより、
+# ログインはどちらの分岐でも同じ CPU コストを払い、タイミングでアドレスの
+# 登録有無が漏れない（design.md §4-2）。import 時に一度だけ計算する。
 DUMMY_PASSWORD_HASH: str = _hasher.hash("reverb-nonexistent-account")
 
 
 def hash_password(password: str) -> str:
-    """Return an Argon2id hash for ``password``."""
+    """``password`` の Argon2id ハッシュを返す。"""
     return _hasher.hash(password)
 
 
 def verify_password(hashed: str, password: str) -> bool:
-    """Return whether ``password`` matches ``hashed``. Never raises."""
+    """``password`` が ``hashed`` と一致するかを返す。例外は投げない。"""
     try:
         return _hasher.verify(hashed, password)
     except (VerifyMismatchError, VerificationError, InvalidHashError):
@@ -33,10 +33,10 @@ def verify_password(hashed: str, password: str) -> bool:
 
 
 def generate_token() -> str:
-    """Return a new opaque session token (URL-safe)."""
+    """新しいオペークなセッショントークンを返す（URL セーフ）。"""
     return secrets.token_urlsafe(32)
 
 
 def hash_token(token: str) -> str:
-    """Return the sha256 hex digest stored in ``sessions.token_hash`` (design.md §4-1)."""
+    """``sessions.token_hash`` に保存する sha256 の16進ダイジェストを返す（design.md §4-1）。"""
     return hashlib.sha256(token.encode()).hexdigest()

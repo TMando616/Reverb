@@ -1,9 +1,9 @@
-"""Persistence for the projects module — the only layer that talks to the DB.
+"""projects モジュールの永続化 ── DB を叩く唯一の層。
 
-Receives an ``AsyncSession``; holds no business rules (ADR-0009). Every getter
-takes ``project_id`` and filters on it so no cross-project read is possible
-(design.md §5-2). Writes ``flush()`` so generated ids and constraint errors
-surface while the handler can still map them (design.md §4-4).
+``AsyncSession`` を受け取り、業務ルールは持たない（ADR-0009）。すべての
+getter は ``project_id`` を受け取ってそれで絞り込むので、企画をまたいだ読み取りは
+起こり得ない（design.md §5-2）。書き込みは ``flush()`` するので、生成された id と
+制約違反がハンドラでまだマッピングできるタイミングで表面化する（design.md §4-4）。
 """
 
 from collections.abc import Sequence
@@ -32,7 +32,7 @@ class ProjectRepository:
         return await self._session.get(Project, project_id)
 
     async def list_for_user(self, user_id: int) -> Sequence[tuple[Project, Role]]:
-        """Projects the user belongs to, newest first, each with the user's role."""
+        """ユーザーが所属する企画を、新しい順に、それぞれの role とともに返す。"""
         result = await self._session.execute(
             select(Project, ProjectMember.role)
             .join(ProjectMember, ProjectMember.project_id == Project.id)
@@ -43,9 +43,9 @@ class ProjectRepository:
 
 
 class ProjectMemberRepository:
-    """Structurally satisfies ``core.authorization.MemberRoleReader`` via
-    ``role_of`` — it does not inherit the Protocol, so ``core`` stays free of
-    any import from ``app.modules`` (design.md §5-2).
+    """``role_of`` によって ``core.authorization.MemberRoleReader`` を構造的に
+    満たす ── Protocol を継承はしないので、``core`` は ``app.modules`` からの
+    import を持たずに済む（design.md §5-2）。
     """
 
     def __init__(self, session: AsyncSession) -> None:
@@ -71,7 +71,7 @@ class ProjectMemberRepository:
         return result.scalar_one_or_none()
 
     async def list_members(self, project_id: int) -> Sequence[tuple[ProjectMember, User]]:
-        """Members of a project with their user row, in join order."""
+        """企画のメンバーを、その user 行とともに join した順で返す。"""
         result = await self._session.execute(
             select(ProjectMember, User)
             .join(User, User.id == ProjectMember.user_id)
@@ -81,8 +81,9 @@ class ProjectMemberRepository:
         return [(member, user) for member, user in result.all()]
 
     async def lock_and_count_owners(self, project_id: int) -> int:
-        """Count owner rows under ``SELECT ... FOR UPDATE`` so the last-owner
-        guard cannot race a concurrent demotion / removal (design.md §9-3).
+        """``SELECT ... FOR UPDATE`` で owner 行をロックしてから数える。これにより、
+        同時に走った降格・除名が最後の owner ガードのカウントをすり抜けない
+        （design.md §9-3）。
         """
         result = await self._session.execute(
             select(ProjectMember.id)
@@ -95,11 +96,11 @@ class ProjectMemberRepository:
         return len(result.all())
 
     async def add(self, *, project_id: int, user_id: int, role: Role) -> None:
-        """Insert a membership, or do nothing if one already exists.
+        """メンバーシップを挿入する。既に存在する場合は何もしない。
 
-        ``ON CONFLICT DO NOTHING`` on ``UNIQUE (project_id, user_id)`` is what
-        keeps invitation acceptance from overwriting (and so silently demoting)
-        an existing role (design.md §9-2).
+        ``UNIQUE (project_id, user_id)`` への ``ON CONFLICT DO NOTHING`` が、
+        招待受諾が既存の role を上書き（＝黙って降格させること）しないようにする
+        （design.md §9-2）。
         """
         await self._session.execute(
             pg_insert(ProjectMember)
@@ -109,8 +110,8 @@ class ProjectMemberRepository:
         await self._session.flush()
 
     async def update_role(self, project_id: int, user_id: int, role: Role) -> None:
-        # synchronize_session keeps an already-loaded ProjectMember in the
-        # identity map consistent, so the caller can return it as-is.
+        # synchronize_session により、既にロード済みの ProjectMember を
+        # identity map 上でも一致させる。呼び出し元はそのまま返せる。
         await self._session.execute(
             update(ProjectMember)
             .where(
@@ -161,9 +162,9 @@ class InvitationRepository:
         return invitation
 
     async def find_valid_by_token_hash(self, token_hash: str) -> Invitation | None:
-        """The invitation for ``token_hash`` only if it is still usable: not yet
-        accepted and not past ``expires_at`` (design.md §9-1). Anything else
-        returns ``None`` and the caller maps it to a single 404 (§6-3).
+        """``token_hash`` の招待を、まだ使える場合に限って返す：未受諾かつ
+        ``expires_at`` を過ぎていないこと（design.md §9-1）。それ以外は ``None`` を
+        返し、呼び出し元が単一の 404 にマッピングする（§6-3）。
         """
         result = await self._session.execute(
             select(Invitation).where(
@@ -175,7 +176,7 @@ class InvitationRepository:
         return result.scalar_one_or_none()
 
     async def mark_accepted(self, invitation_id: int, *, accepted_user_id: int) -> None:
-        """Stamp ``accepted_at`` (server clock) and record who accepted."""
+        """``accepted_at``（サーバークロック）を打ち、誰が受諾したかを記録する。"""
         await self._session.execute(
             update(Invitation)
             .where(Invitation.id == invitation_id)

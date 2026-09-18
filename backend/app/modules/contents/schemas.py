@@ -1,7 +1,7 @@
-"""Pydantic request/response schemas for the contents module.
+"""contents モジュールの Pydantic リクエスト/レスポンススキーマ。
 
-Kept separate from models.py on purpose: the shape of the API contract and the
-shape of a table change for different reasons (structure.md, ADR-0002 §理由3).
+models.py とは意図的に分けている：API 契約の形とテーブルの形は変わる理由が
+異なるため（structure.md、ADR-0002 §理由3）。
 """
 
 from datetime import datetime
@@ -17,8 +17,8 @@ class ContentCreateRequest(BaseModel):
 
 
 class ContentUpdateRequest(BaseModel):
-    """Omitted fields stay as they are. ``expected_version`` is mandatory so no
-    update can skip the optimistic lock (design.md §3-3).
+    """省略したフィールドはそのまま。``expected_version`` は必須で、これにより
+    どの更新も楽観ロックをすり抜けられない（design.md §3-3）。
     """
 
     title: str | None = Field(default=None, min_length=1, max_length=200)
@@ -34,7 +34,7 @@ class ContentOut(BaseModel):
     title: str
     body_md: str
     status: ContentStatus
-    # Echoed so the client can send it back as the next ``expected_version``.
+    # クライアントが次の ``expected_version`` としてそのまま送り返せるよう返す。
     version: int
     created_by: int
     created_at: datetime

@@ -1,4 +1,4 @@
-"""Unit tests for the project authorizer (design.md §5-2 / §5-3)."""
+"""企画の認可器のユニットテスト（design.md §5-2 / §5-3）。"""
 
 import pytest
 from app.core.authorization import (
@@ -12,7 +12,7 @@ from app.core.exceptions import ForbiddenError, NotFoundError
 
 
 class FakeMembers:
-    """In-memory MemberRoleReader: (user_id, project_id) -> Role."""
+    """インメモリの MemberRoleReader：(user_id, project_id) -> Role。"""
 
     def __init__(self, roles: dict[tuple[int, int], Role]) -> None:
         self._roles = roles
@@ -44,7 +44,7 @@ async def test_member_with_permission_gets_role_back() -> None:
 
 
 async def test_demo_is_clamped_to_view_only_intersection() -> None:
-    # Demo owner: reads pass, writes are refused regardless of the owner role.
+    # demo の owner：読み取りは通るが、owner role であっても書き込みは拒否される。
     authz = _authorizer({(1, 10): Role.OWNER})
     demo = Actor(user_id=1, is_demo=True)
 
@@ -61,4 +61,4 @@ def test_require_not_demo_blocks_demo() -> None:
 
 
 def test_require_not_demo_allows_regular_user() -> None:
-    require_not_demo(Actor(user_id=1, is_demo=False))  # does not raise
+    require_not_demo(Actor(user_id=1, is_demo=False))  # 例外を投げない

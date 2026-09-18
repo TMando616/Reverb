@@ -1,7 +1,7 @@
-"""ORM models for the auth module (認証・現在のユーザー解決).
+"""auth モジュールの ORM モデル（認証・現在のユーザー解決）。
 
-Tables land here in the foundation spec (design.md §3). Only this file and
-repository.py may import ``sqlalchemy`` inside a module.
+テーブル定義は foundation スペックでここに置く（design.md §3）。モジュール内で
+``sqlalchemy`` を import できるのはこのファイルと repository.py だけ。
 """
 
 from datetime import datetime
@@ -13,8 +13,8 @@ from app.core.db import Base, TimestampMixin
 
 
 class User(TimestampMixin, Base):
-    """A person who can sign in. Rows are created only via invitation acceptance
-    or the bootstrap CLI — there is no self-registration endpoint (F2).
+    """ログイン可能な人物。行が作られるのは招待受諾または bootstrap CLI のみ ──
+    自己登録エンドポイントは存在しない（F2）。
     """
 
     __tablename__ = "users"
@@ -23,13 +23,13 @@ class User(TimestampMixin, Base):
     email: Mapped[str] = mapped_column(String(320), unique=True, nullable=False)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     display_name: Mapped[str] = mapped_column(String(100), nullable=False)
-    # Demo accounts are clamped to read-only regardless of role (design.md §5-2).
+    # demo アカウントは role に関わらず読み取り専用に固定される（design.md §5-2）。
     is_demo: Mapped[bool] = mapped_column(nullable=False, default=False, server_default="false")
 
 
 class Session(Base):
-    """An opaque-token session. Only ``sha256(token)`` is stored (design.md §4-1);
-    ``revoked_at`` lets logout take effect immediately (F1).
+    """オペークトークンのセッション。保存するのは ``sha256(token)`` だけ
+    （design.md §4-1）。``revoked_at`` によりログアウトが即座に効く（F1）。
     """
 
     __tablename__ = "sessions"

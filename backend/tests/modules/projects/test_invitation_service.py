@@ -1,4 +1,4 @@
-"""Unit tests for ``InvitationService.accept`` (design.md §9-1 / §9-2, tasks.md §3.8)."""
+"""``InvitationService.accept`` のユニットテスト（design.md §9-1 / §9-2、tasks.md §3.8）。"""
 
 from datetime import UTC, datetime, timedelta
 
@@ -98,8 +98,8 @@ async def test_logged_in_user_is_added_with_the_invitation_role() -> None:
 
 
 async def test_existing_member_keeps_their_role_when_accepting_a_different_one() -> None:
-    # §9-2: acceptance never overwrites an existing role — the link is not a
-    # demotion path. The response reports the role actually held.
+    # §9-2：受諾は既存の role を決して上書きしない ── リンクは降格の経路ではない。
+    # レスポンスには実際に保持している role が返る。
     invitations = FakeInvitationRepository()
     invitations.seed(_pending(role=Role.REVIEWER))
     members = FakeProjectMemberRepository(members=[(10, 5, Role.OWNER)], users=[make_user(id=5)])
@@ -125,7 +125,7 @@ async def test_anonymous_acceptance_registers_a_user_from_the_invitation_email()
 
     created = await users.get_by_email("new@example.com")
     assert created is not None
-    assert created.password_hash != "s3cret-pw"  # stored as an Argon2 hash
+    assert created.password_hash != "s3cret-pw"  # Argon2 ハッシュとして保存される
     assert await members.role_of(created.id, 10) is Role.EDITOR
     assert result.role is Role.EDITOR
 

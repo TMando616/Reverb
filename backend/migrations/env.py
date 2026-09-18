@@ -1,4 +1,4 @@
-"""Alembic environment — async engine, metadata from app.core.db.Base."""
+"""Alembic の実行環境 ── 非同期エンジンと、app.core.db.Base から取るメタデータ。"""
 
 import asyncio
 from logging.config import fileConfig

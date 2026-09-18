@@ -1,9 +1,9 @@
-"""Business rules and authorization for the contents module (コンテンツ CRUD・状態遷移).
+"""contents モジュールの業務ルールと認可（コンテンツ CRUD・状態遷移）。
 
-Knows nothing about HTTP (no ``fastapi`` / ``Request``) and never holds an
-``AsyncSession`` directly — repositories are injected in (design.md §2-2).
-Authorization is the first line of every method so MCP / job callers get the
-same checks as the browser (design.md §5-2, F5).
+HTTP のことは知らない（``fastapi`` / ``Request`` は import しない）し、
+``AsyncSession`` を直接持つこともない ── repository は注入される（design.md §2-2）。
+認可はすべてのメソッドの最初の一文なので、MCP やジョブからの呼び出しもブラウザと
+同じチェックを受ける（design.md §5-2、F5）。
 """
 
 from collections.abc import Sequence
@@ -26,7 +26,7 @@ class ContentService:
         self._transitions = transitions
 
     async def create(self, actor: Actor, project_id: int, *, title: str, body_md: str) -> Content:
-        """New contents always start in ``inbox`` (F6)."""
+        """新しいコンテンツは必ず ``inbox`` から始まる（F6）。"""
         await self._authz.require(actor, project_id, Permission.CONTENT_WRITE)
         return await self._contents.create(
             project_id=project_id,
@@ -56,15 +56,16 @@ class ContentService:
         title: str | None = None,
         body_md: str | None = None,
     ) -> Content:
-        """Update title and/or body under the two-stage optimistic lock (design.md §3-3).
+        """title / body を二段の楽観ロックの下で更新する（design.md §3-3）。
 
-        Stage 1 compares ``expected_version`` with what we just read, so a client
-        that was already stale gets a clear 409 before anything is written. Stage 2
-        is the ``WHERE version = ?`` on flush, which catches a writer that slipped
-        in between our read and our flush; the repository maps it to the same 409.
+        1段目は、たった今読み込んだ値と ``expected_version`` を比較する。これに
+        より、送信前から既に古かったリクエストには何も書き込まず明確な 409 を
+        返せる。2段目は flush 時の ``WHERE version = ?``。読み込みと flush の間に
+        割り込んだ書き手を捕まえ、repository が同じ 409 にマッピングする。
 
-        Sending unchanged values issues no UPDATE and leaves ``version`` as is.
-        That is intended: nothing changed, so no other client's copy went stale.
+        変更のない値を送っても UPDATE は発行されず、``version`` はそのまま。
+        これは意図した挙動：何も変わっていないなら、他クライアントのコピーが
+        古くなったわけでもない。
         """
         await self._authz.require(actor, project_id, Permission.CONTENT_WRITE)
         content = await self._get_or_404(content_id, project_id)
@@ -77,13 +78,13 @@ class ContentService:
         return content
 
     async def delete(self, actor: Actor, project_id: int, content_id: int) -> None:
-        """Logical delete (design.md §3-2); later specs keep referring to the row."""
+        """論理削除（design.md §3-2）。後続スペックがこの行を参照し続けるため。"""
         await self._authz.require(actor, project_id, Permission.CONTENT_WRITE)
         content = await self._get_or_404(content_id, project_id)
         await self._contents.soft_delete(content)
 
     async def _get_or_404(self, content_id: int, project_id: int) -> Content:
-        # Scoped by project_id: another project's content id is just "not found".
+        # project_id で絞り込んでいるので、他企画のコンテンツ id は単に「無い」。
         content = await self._contents.get(content_id, project_id)
         if content is None:
             raise NotFoundError("content")

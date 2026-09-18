@@ -1,14 +1,14 @@
-"""Management commands that bypass HTTP (design.md §9-0).
+"""HTTP を経由しない管理コマンド（design.md §9-0）。
 
-Self-registration does not exist (F2) and only a project owner can invite, so
-without this entry point nobody can ever sign in — the bootstrap is circular.
-This is the operational way in, not an API: it stays at "create the first user
-and hand out the first membership" and grows no further (design.md §9-0).
+自己登録は存在せず（F2）、招待できるのは企画の owner だけ ── つまりこの入口
+が無いと誰もログインできない。bootstrap の入口が循環している。これは運用上の
+入口であって API ではない：「最初のユーザーを作り、最初のメンバーシップを
+払い出す」ところで止め、それ以上機能を足さない（design.md §9-0）。
 
-Commands go through ``UserRepository`` / ``InvitationService`` rather than raw
-SQL so password hashing and the invitation rules are never implemented twice.
-Unlike the request path there is no ``get_session`` dependency here, so this
-module opens ``async_session()`` itself and owns the single ``commit()``.
+コマンドは SQL を直書きせず ``UserRepository`` / ``InvitationService`` を経由する。
+パスワードハッシュ化と招待の規則を二重実装しないためである。リクエスト経路と
+異なり ``get_session`` の dependency はここに無いので、このモジュール自身が
+``async_session()`` を開き、唯一の ``commit()`` を持つ。
 
     docker compose exec backend python -m app.cli create-user \
         --email owner@example.com --display-name まんどぅ
@@ -46,9 +46,9 @@ GENERATED_PASSWORD_BYTES = 16
 
 
 class CommandError(Exception):
-    """An operator mistake (unknown id, duplicate email, no tty for the prompt).
+    """操作者側のミス（不明な id、メールアドレスの重複、プロンプト用の tty が無い等）。
 
-    Reported as a one-line message and a non-zero exit, never a traceback.
+    1行のメッセージと非ゼロの終了コードで報告する。トレースバックは出さない。
     """
 
 
@@ -60,8 +60,8 @@ async def _create_user(
     is_demo: bool,
     generate: bool,
 ) -> None:
-    """Create a sign-in-able user. The bootstrap owner and the demo account
-    both come from here (design.md §9-0).
+    """ログイン可能なユーザーを作成する。bootstrap の owner も demo アカウントも
+    ここから作る（design.md §9-0）。
     """
     users = UserRepository(session)
     if await users.get_by_email(email) is not None:
@@ -76,16 +76,15 @@ async def _create_user(
     )
     print(f"created user #{user.id}  {email}  demo={is_demo}")
     if was_generated:
-        # Printed once and never stored in the clear; it is not recoverable.
+        # 1回だけ表示し、平文で保存はしない。再表示は不可能。
         print(f"password: {password}")
 
 
 async def _add_member(session: AsyncSession, *, project_id: int, user_id: int, role: Role) -> None:
-    """Grant a membership directly, without an invitation.
+    """招待を経由せず、メンバーシップを直接付与する。
 
-    The ops-side counterpart to invitation acceptance: it is how the demo
-    account joins a project, since accepting is a write and demo accounts are
-    read-only (design.md §5-3, §9-0).
+    招待受諾の運用側の対応版：受諾は書き込みで demo アカウントは読み取り専用
+    なので、demo が企画に参加する経路はこちらになる（design.md §5-3、§9-0）。
     """
     projects = ProjectRepository(session)
     users = UserRepository(session)
@@ -96,8 +95,8 @@ async def _add_member(session: AsyncSession, *, project_id: int, user_id: int, r
     if await users.get(user_id) is None:
         raise CommandError(f"user #{user_id} does not exist")
 
-    # `add` is ON CONFLICT DO NOTHING (design.md §9-2), so an existing member
-    # would silently keep their old role. Say so instead of reporting success.
+    # `add` は ON CONFLICT DO NOTHING（design.md §9-2）なので、既存メンバーは
+    # 旧ロールが黙って残る。成功として報告せず、その旨をエラーにする。
     existing = await members.role_of(user_id, project_id)
     if existing is not None:
         raise CommandError(
@@ -110,11 +109,11 @@ async def _add_member(session: AsyncSession, *, project_id: int, user_id: int, r
 
 
 async def _accept_invitation(session: AsyncSession, *, token: str, email: str) -> None:
-    """Accept an invitation from the terminal, as an existing user.
+    """既存ユーザーとして、ターミナルから招待を受諾する。
 
-    Registration-on-accept is the browser's job (design.md §9-1), so the
-    account must already exist here. Runs the real ``InvitationService`` — the
-    CLI gets no shortcut past the invitation rules.
+    受諾時の新規登録はブラウザの役割（design.md §9-1）なので、ここではアカウントが
+    既に存在している必要がある。実際の ``InvitationService`` を呼ぶ ── CLI にも
+    招待の規則を回避する近道は作らない。
     """
     users = UserRepository(session)
     user = await users.get_by_email(email)
@@ -136,10 +135,10 @@ async def _accept_invitation(session: AsyncSession, *, token: str, email: str) -
 
 
 def _resolve_password(generate: bool) -> tuple[str, bool]:
-    """Return ``(password, was_generated)``.
+    """``(password, was_generated)`` を返す。
 
-    Never taken from argv, so it does not land in the shell history
-    (design.md §9-0): either typed at a prompt or generated here.
+    argv からは受け取らないので、シェル履歴に残らない（design.md §9-0）：
+    プロンプトで入力するか、ここで生成する。
     """
     if generate:
         return secrets.token_urlsafe(GENERATED_PASSWORD_BYTES), True
@@ -197,8 +196,8 @@ async def _dispatch(session: AsyncSession, args: argparse.Namespace) -> None:
 
 
 async def _run(args: argparse.Namespace) -> None:
-    """One command == one session == one transaction, mirroring ``get_session``
-    (design.md §4-4). Services flush; the only ``commit()`` is here.
+    """1コマンド＝1セッション＝1トランザクション。``get_session`` と同じ形にする
+    （design.md §4-4）。Service は flush だけ行い、唯一の ``commit()`` はここにある。
     """
     try:
         async with async_session() as session:
@@ -217,8 +216,8 @@ def main() -> None:
     try:
         asyncio.run(_run(args))
     except (CommandError, AppError) as exc:
-        # Operator errors and domain refusals (e.g. a demo account trying to
-        # accept) are messages, not tracebacks.
+        # 操作者側のミスとドメイン上の拒否（demo アカウントの受諾試行など）は
+        # メッセージとして扱い、トレースバックにはしない。
         raise SystemExit(f"error: {exc}") from exc
 
 

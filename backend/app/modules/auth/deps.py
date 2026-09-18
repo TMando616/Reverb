@@ -1,7 +1,7 @@
-"""Dependency wiring for the auth module.
+"""auth モジュールの dependency 組み立て。
 
-The assembly role: allowed to import both router-facing and repository-facing
-code, so it is intentionally excluded from the layers contract (design.md §11).
+組み立て役：router 側・repository 側どちらのコードも import してよいので、
+層の依存契約からは意図的に除外している（design.md §11）。
 """
 
 from typing import Annotated
@@ -25,8 +25,8 @@ def _parse_bearer(authorization: str) -> str:
 
 
 def get_current_token(authorization: str | None = Header(default=None)) -> str:
-    """The raw bearer token, or 401. ``Header(default=None)`` keeps a missing
-    header a 401 rather than FastAPI's 422 (design.md §4-3).
+    """生の bearer トークン、無ければ 401。``Header(default=None)`` にすることで、
+    ヘッダー欠落を FastAPI 標準の 422 ではなく 401 にする（design.md §4-3）。
     """
     if authorization is None:
         raise AuthenticationError()
@@ -37,10 +37,10 @@ async def get_current_actor(
     token: Annotated[str, Depends(get_current_token)],
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> Actor:
-    """Resolve the caller from the bearer token (design.md §4-3).
+    """bearer トークンから呼び出し元を解決する（design.md §4-3）。
 
-    One query joins ``sessions`` to ``users`` so ``is_demo`` is always present.
-    Missing / malformed / revoked / expired token -> 401.
+    ``sessions`` と ``users`` を1クエリで join するので ``is_demo`` は常に手に入る。
+    トークンが無い・不正・失効・期限切れ -> 401。
     """
     row = await SessionRepository(session).find_valid_with_user(hash_token(token))
     if row is None:

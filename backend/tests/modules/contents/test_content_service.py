@@ -1,4 +1,4 @@
-"""Unit tests for ``ContentService`` CRUD and optimistic locking (design.md §3-3, tasks.md §5.7)."""
+"""``ContentService`` の CRUD と楽観ロックのユニットテスト（design.md §3-3、tasks.md §5.7）。"""
 
 import pytest
 from app.core.authorization import Actor, ProjectAuthorizer, Role
@@ -25,7 +25,7 @@ def _setup() -> tuple[ContentService, FakeContentRepository]:
             (PROJECT, OWNER.user_id, Role.OWNER),
             (PROJECT, EDITOR.user_id, Role.EDITOR),
             (PROJECT, REVIEWER.user_id, Role.REVIEWER),
-            # Even an owner role is clamped to read-only for demo (design.md §5-2).
+            # owner role であっても demo は読み取り専用に固定される（design.md §5-2）。
             (PROJECT, DEMO_OWNER.user_id, Role.OWNER),
             (OTHER_PROJECT, OWNER.user_id, Role.OWNER),
         ]
@@ -121,7 +121,8 @@ async def test_stale_expected_version_is_409_and_changes_nothing() -> None:
 
 
 async def test_conflict_detected_at_flush_is_409() -> None:
-    # Stage 2: the version matched on read, but another writer got in before our flush.
+    # 2段目：version は読み込み時点では一致していたが、flush より前に別の
+    # 書き手が入ってきたケース。
     service, contents = _setup()
     content = await _seed(service)
     contents.lose_next_race()
@@ -131,10 +132,9 @@ async def test_conflict_detected_at_flush_is_409() -> None:
 
 
 async def test_unchanged_patch_keeps_version_without_breaking_conflict_detection() -> None:
-    """design.md §3-3: an unchanged PATCH issues no UPDATE, so ``version`` stays.
-
-    That must not open a hole: a client still on the old version succeeds only
-    while nothing has really changed, and gets 409 as soon as something has.
+    """design.md §3-3：変更のない PATCH は UPDATE を発行しないので ``version`` は
+    そのまま。だからといって穴を開けてはいけない：古い version を持つクライアント
+    が成功するのは実際に何も変わっていない間だけで、何かが変わった瞬間に 409 になる。
     """
     service, _ = _setup()
     content = await _seed(service)
@@ -142,11 +142,11 @@ async def test_unchanged_patch_keeps_version_without_breaking_conflict_detection
     same = await service.update(EDITOR, PROJECT, content.id, 1, title="idea", body_md="memo")
     assert same.version == 1
 
-    # Another client also holding version 1: still valid, the data it saw is current.
+    # version 1 を持つ別のクライアント：まだ有効。見ているデータは最新のまま。
     changed = await service.update(OWNER, PROJECT, content.id, 1, title="renamed")
     assert changed.version == 2
 
-    # The first client, still on version 1, is now genuinely stale.
+    # 最初のクライアントは version 1 のまま ── ここで初めて本当に古くなる。
     with pytest.raises(VersionConflictError):
         await service.update(EDITOR, PROJECT, content.id, 1, body_md="overwrite")
 

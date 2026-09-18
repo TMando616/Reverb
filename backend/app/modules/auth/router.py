@@ -1,6 +1,6 @@
-"""HTTP controller for the auth module — DTO validation and status codes only.
+"""auth モジュールの HTTP コントローラ ── DTO の検証とステータスコードのみ。
 
-No business decisions here; those live in service.py (ADR-0009).
+業務判断はここに置かない。それは service.py の責務（ADR-0009）。
 """
 
 from typing import Annotated

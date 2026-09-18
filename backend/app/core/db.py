@@ -1,7 +1,7 @@
-"""Async engine and session factory.
+"""非同期エンジンとセッションファクトリ。
 
-Only ``repository.py`` / ``models.py`` / ``deps.py`` / ``cli.py`` / ``migrations/``
-are allowed to import from here (see design.md §2-2, enforced by .importlinter).
+ここから import できるのは ``repository.py`` / ``models.py`` / ``deps.py`` /
+``cli.py`` / ``migrations/`` のみ（design.md §2-2、.importlinter で強制）。
 """
 
 from collections.abc import AsyncIterator
@@ -22,14 +22,14 @@ async_session = async_sessionmaker(engine, expire_on_commit=False)
 
 
 class Base(DeclarativeBase):
-    """Declarative base for all ORM models."""
+    """全 ORM モデルの宣言的ベースクラス。"""
 
 
 class TimestampMixin:
-    """``created_at`` / ``updated_at`` filled by the database (design.md §3-1).
+    """``created_at`` / ``updated_at`` を DB 側で埋める（design.md §3-1）。
 
-    Timestamps are ``timestamptz``; the server clock owns them so rows written
-    outside the app (CLI, migrations) stay consistent.
+    タイムスタンプは ``timestamptz``。サーバークロックが責務を持つので、
+    アプリ外（CLI・マイグレーション）から書いた行でも値の一貫性が保たれる。
     """
 
     created_at: Mapped[datetime] = mapped_column(
@@ -44,13 +44,14 @@ class TimestampMixin:
 
 
 async def get_session() -> AsyncIterator[AsyncSession]:
-    """FastAPI dependency: one request == one session == one transaction.
+    """FastAPI の dependency：1リクエスト＝1セッション＝1トランザクション。
 
-    Services flush but never commit (design.md §4-4). The single ``commit()``
-    lives here and runs only if the handler returned without raising. Because
-    FastAPI runs post-yield code after the response is sent, write-path Services
-    must ``flush()`` before returning so constraint / optimistic-lock errors
-    surface while the handler can still turn them into 4xx (design.md §4-4).
+    Service は flush はするが commit はしない（design.md §4-4）。唯一の
+    ``commit()`` はここにあり、ハンドラが例外を出さずに戻ったときだけ実行される。
+    FastAPI は yield 後のコードをレスポンス送信後に走らせるため、書き込み系の
+    Service はここに戻る前に ``flush()`` しておく必要がある。そうすれば
+    制約違反・楽観ロック競合がハンドラ側でまだ 4xx に変換できるタイミングで
+    表面化する（design.md §4-4）。
     """
     async with async_session() as session:
         try:

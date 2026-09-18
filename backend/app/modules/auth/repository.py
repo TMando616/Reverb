@@ -1,8 +1,8 @@
-"""Persistence for the auth module — the only layer that talks to the DB.
+"""auth モジュールの永続化 ── DB を叩く唯一の層。
 
-Receives an ``AsyncSession``; holds no business rules (ADR-0009). Writes
-``flush()`` so the caller sees generated ids and constraint errors surface
-while the handler can still map them (design.md §4-4).
+``AsyncSession`` を受け取り、業務ルールは持たない（ADR-0009）。書き込みは
+``flush()`` するので、呼び出し元は生成された id を見られ、制約違反もハンドラが
+まだマッピングできるタイミングで表面化する（design.md §4-4）。
 """
 
 from datetime import datetime
@@ -50,11 +50,11 @@ class SessionRepository:
         return row
 
     async def find_valid_with_user(self, token_hash: str) -> Session | None:
-        """Return the live session for ``token_hash`` with its ``user`` loaded.
+        """``token_hash`` の有効なセッションを、``user`` をロードした状態で返す。
 
-        Live == not revoked and not past ``expires_at`` (design.md §4-1). The
-        user is eager-loaded in one round trip because ``is_demo`` is needed on
-        every request (design.md §4-3).
+        「有効」とは失効しておらず ``expires_at`` も過ぎていないこと
+        （design.md §4-1）。``is_demo`` は毎リクエスト必要なので、user は
+        1往復で eager load する（design.md §4-3）。
         """
         result = await self._session.execute(
             select(Session)
@@ -68,7 +68,7 @@ class SessionRepository:
         return result.scalar_one_or_none()
 
     async def revoke(self, token_hash: str) -> None:
-        """Stamp ``revoked_at`` on a live session. A no-op if already gone."""
+        """有効なセッションに ``revoked_at`` を打つ。既に無ければ何もしない。"""
         await self._session.execute(
             update(Session)
             .where(Session.token_hash == token_hash, Session.revoked_at.is_(None))

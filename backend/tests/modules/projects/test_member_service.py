@@ -1,4 +1,4 @@
-"""Unit tests for ``MemberService`` (design.md §9-1 / §9-3, tasks.md §3.8)."""
+"""``MemberService`` のユニットテスト（design.md §9-1 / §9-3、tasks.md §3.8）。"""
 
 from datetime import UTC, datetime, timedelta
 

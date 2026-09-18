@@ -1,7 +1,7 @@
-"""ORM models for the projects module (企画・メンバー・招待).
+"""projects モジュールの ORM モデル（企画・メンバー・招待）。
 
-Tables land here in the foundation spec (design.md §3). Only this file and
-repository.py may import ``sqlalchemy`` inside a module.
+テーブル定義は foundation スペックでここに置く（design.md §3）。モジュール内で
+``sqlalchemy`` を import できるのはこのファイルと repository.py だけ。
 """
 
 from datetime import datetime
@@ -19,16 +19,16 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.core.authorization import Role
 from app.core.db import Base, TimestampMixin
 
-# Single source for the DB-side CHECK: the role column is a plain string plus an
-# app-level ``Role`` StrEnum, so values can change without a migration on an
-# ENUM type (design.md §3-2).
+# DB 側の CHECK 制約の唯一の源：role カラムは素の文字列 + アプリ側の
+# ``Role`` StrEnum なので、値の増減が ENUM 型のマイグレーションを要らなくする
+# （design.md §3-2）。
 _ROLE_VALUES = tuple(r.value for r in Role)
 _ROLE_CHECK = "role IN ({})".format(", ".join(f"'{v}'" for v in _ROLE_VALUES))
 
 
 class Project(TimestampMixin, Base):
-    """A publishing project. Its creator becomes the first ``owner`` member in
-    the same transaction (design.md §9-3); non-members are shown a 404 (§5-2).
+    """発信の企画。作成者は同一トランザクション内で最初の ``owner`` メンバーになる
+    （design.md §9-3）。非メンバーには 404 を返す（§5-2）。
     """
 
     __tablename__ = "projects"
@@ -41,11 +41,11 @@ class Project(TimestampMixin, Base):
 
 
 class ProjectMember(Base):
-    """Join row between a user and a project carrying a ``role``.
+    """ユーザーと企画を ``role`` 付きで結ぶ中間テーブルの行。
 
-    ``UNIQUE (project_id, user_id)`` is what makes "no duplicate membership"
-    (F2) a database guarantee; invitation acceptance relies on it via
-    ``ON CONFLICT DO NOTHING`` (design.md §9-2).
+    ``UNIQUE (project_id, user_id)`` が「重複メンバーシップを作らない」（F2）を
+    DB レベルで保証する。招待受諾はこれに ``ON CONFLICT DO NOTHING`` で乗っている
+    （design.md §9-2）。
     """
 
     __tablename__ = "project_members"
@@ -58,8 +58,8 @@ class ProjectMember(Base):
     project_id: Mapped[int] = mapped_column(
         ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
     )
-    # Indexed on its own: resolving "which projects am I in / what is my role"
-    # is on every authorized request (design.md §3-2 / §5-2).
+    # 単独でインデックスを張る：「自分がどの企画のメンバーで role は何か」の解決は
+    # 認可済みリクエストのたびに走る（design.md §3-2 / §5-2）。
     user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False
     )
@@ -70,9 +70,9 @@ class ProjectMember(Base):
 
 
 class Invitation(Base):
-    """A link-only invitation (design.md §9-1). Only ``sha256(token)`` is stored;
-    the raw token in the accept URL is the sole bearer of authority. Invalid /
-    expired / already-accepted tokens all resolve to the same 404 (§6-3).
+    """リンク方式のみの招待（design.md §9-1）。保存するのは ``sha256(token)`` だけで、
+    受諾 URL に載る生のトークンだけが権限の唯一の担い手。無効・期限切れ・
+    受諾済みのトークンはすべて同じ 404 に解決される（§6-3）。
     """
 
     __tablename__ = "invitations"
@@ -82,7 +82,7 @@ class Invitation(Base):
     project_id: Mapped[int] = mapped_column(
         ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
     )
-    # Recorded for the operator's reference only; M0 has no mail delivery (§9-1).
+    # 運用者の参照用に記録するだけ。M0 にはメール送信基盤が無い（§9-1）。
     email: Mapped[str | None] = mapped_column(String(320))
     role: Mapped[str] = mapped_column(String(20), nullable=False)
     token_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)

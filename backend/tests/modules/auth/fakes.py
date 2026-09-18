@@ -1,8 +1,8 @@
-"""In-memory doubles for the auth repositories (design.md §13).
+"""auth の repository のインメモリダブル（design.md §13）。
 
-Service / deps unit tests inject these so the auth logic can be exercised
-without a database. The real ``find_valid_with_user`` SQL filter (revoked /
-expired) is covered by the API integration tests in tasks.md §7.
+Service / deps のユニットテストはこれを注入し、DB 無しで auth のロジックを
+検証できるようにする。実際の ``find_valid_with_user`` の SQL フィルタ（失効・
+期限切れ）は tasks.md §7 の API 結合テストで確認する。
 """
 
 from datetime import datetime
@@ -42,7 +42,7 @@ class FakeUserRepository:
 
 class FakeSessionRepository:
     def __init__(self, valid: dict[str, SimpleNamespace] | None = None) -> None:
-        self.valid = valid or {}  # token_hash -> row (with a ``user`` attribute)
+        self.valid = valid or {}  # token_hash -> 行（``user`` 属性を持つ）
         self.created: list[SimpleNamespace] = []
         self.revoked: list[str] = []
 

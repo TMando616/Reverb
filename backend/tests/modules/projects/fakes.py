@@ -1,9 +1,9 @@
-"""In-memory doubles for the projects repositories (design.md §13).
+"""projects の repository のインメモリダブル（design.md §13）。
 
-Service unit tests inject these so the project / member / invitation rules run
-without a database. SQL-shaped behaviour that these cannot express (the
-``FOR UPDATE`` lock, the ``expires_at`` filter under real time) is left to the
-API integration tests in tasks.md §7.
+Service のユニットテストはこれを注入し、DB 無しで企画・メンバー・招待の
+ルールを検証できるようにする。これらでは表現できない SQL 由来の挙動
+（``FOR UPDATE`` ロック、実時間下での ``expires_at`` フィルタ）は
+tasks.md §7 の API 結合テストに委ねる。
 """
 
 from collections.abc import Sequence
@@ -46,14 +46,14 @@ class FakeProjectRepository:
         return list(self._membership.get(user_id, []))
 
     def seed_membership(self, user_id: int, project: Project, role: Role) -> None:
-        """Register a (project, role) pair that ``list_for_user`` should return."""
+        """``list_for_user`` が返すべき (project, role) の組を登録する。"""
         self._by_id[project.id] = project
         self._seq = max(self._seq, project.id)
         self._membership.setdefault(user_id, []).append((project, role))
 
 
 class FakeProjectMemberRepository:
-    """Also serves as the ``MemberRoleReader`` for a real ``ProjectAuthorizer``."""
+    """本物の ``ProjectAuthorizer`` にとっての ``MemberRoleReader`` としても働く。"""
 
     def __init__(self, members: Sequence[tuple[int, int, Role]] = (), users: Sequence[User] = ()):
         self._rows: dict[tuple[int, int], ProjectMember] = {}
@@ -92,7 +92,7 @@ class FakeProjectMemberRepository:
         )
 
     async def add(self, *, project_id: int, user_id: int, role: Role) -> None:
-        # ON CONFLICT DO NOTHING: an existing membership is never overwritten.
+        # ON CONFLICT DO NOTHING：既存のメンバーシップは決して上書きされない。
         if (project_id, user_id) not in self._rows:
             self._insert(project_id, user_id, role)
 

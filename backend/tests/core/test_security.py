@@ -1,4 +1,4 @@
-"""Unit tests for password hashing and token helpers (design.md §4-1 / §4-2)."""
+"""パスワードハッシュとトークンヘルパーのユニットテスト（design.md §4-1 / §4-2）。"""
 
 from app.core.security import (
     DUMMY_PASSWORD_HASH,
@@ -21,7 +21,7 @@ def test_verify_password_never_raises_on_garbage_hash() -> None:
 
 
 def test_dummy_hash_is_usable_for_timing_equalisation() -> None:
-    # design.md §4-2: login verifies against this when the email is unknown.
+    # design.md §4-2：email が未登録のとき、ログインはこれを検証する。
     assert verify_password(DUMMY_PASSWORD_HASH, "anything") is False
 
 
@@ -30,4 +30,4 @@ def test_tokens_are_unique_and_hash_is_stable() -> None:
     assert a != b
     assert hash_token(a) == hash_token(a)
     assert hash_token(a) != hash_token(b)
-    assert len(hash_token(a)) == 64  # sha256 hex
+    assert len(hash_token(a)) == 64  # sha256 の16進表記

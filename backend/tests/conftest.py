@@ -1,8 +1,8 @@
-"""Shared test fixtures.
+"""共有のテストフィクスチャ。
 
-DB-backed fixtures (transaction isolation via savepoints, design.md §13-1) are
-added with the foundation spec. For the M0 scaffold we only exercise the app
-wiring, so no database is required here.
+DB を伴うフィクスチャ（savepoint によるトランザクション分離、design.md §13-1）は
+foundation スペックで追加する。M0 のスキャフォールドの段階では app の配線だけを
+確認するので、ここではデータベースを必要としない。
 """
 
 from collections.abc import AsyncIterator

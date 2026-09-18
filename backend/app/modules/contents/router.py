@@ -1,8 +1,8 @@
-"""HTTP controller for the contents module — DTO validation and status codes only.
+"""contents モジュールの HTTP コントローラ ── DTO の検証とステータスコードのみ。
 
-No business decisions here; those live in service.py (ADR-0009). Every path
-carries ``project_id`` so a content is only ever reached through its project
-(design.md §6-1, F5).
+業務判断はここに置かない。それは service.py の責務（ADR-0009）。すべてのパスに
+``project_id`` を持たせ、コンテンツは常に企画を経由してのみ到達できるようにする
+（design.md §6-1、F5）。
 """
 
 from typing import Annotated
@@ -25,7 +25,8 @@ async def list_contents(
     project_id: int,
     actor: CurrentActor,
     service: ContentServiceDep,
-    # A single-status filter only; tags / keywords belong to content-pipeline (design.md §6-1).
+    # 絞り込みは単一 status のみ。タグ・キーワードは content-pipeline の範疇
+    # （design.md §6-1）。
     status: ContentStatus | None = None,
 ) -> list[schemas.ContentOut]:
     rows = await service.list(actor, project_id, status=status)

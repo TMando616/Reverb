@@ -1,10 +1,10 @@
-"""In-memory doubles for the contents repositories (design.md §13).
+"""contents の repository のインメモリダブル（design.md §13）。
 
-``FakeContentRepository`` mimics the one ``version_id_col`` behaviour the
-Service relies on: ``flush`` bumps ``version`` only when a tracked field actually
-changed. The real ``StaleDataError`` → 409 mapping needs two live transactions,
-so here it is simulated with ``lose_next_race`` and the real thing is left to the
-API integration tests in tasks.md §7.
+``FakeContentRepository`` は、Service が依存している ``version_id_col`` の
+挙動を1つだけ模している：``flush`` は追跡対象のフィールドが実際に変わった
+ときだけ ``version`` を進める。本物の ``StaleDataError`` → 409 のマッピングは
+2つの実トランザクションを要するので、ここでは ``lose_next_race`` で模擬し、
+本物は tasks.md §7 の API 結合テストに委ねる。
 """
 
 from collections.abc import Sequence
@@ -73,7 +73,7 @@ class FakeContentRepository:
                 self._snapshots[content.id] = snapshot
 
     def lose_next_race(self) -> None:
-        """Make the next flush behave as if another transaction bumped ``version``."""
+        """次の flush を、別トランザクションが ``version`` を進めた場合と同じ挙動にする。"""
         self._lose_next_race = True
 
     @staticmethod

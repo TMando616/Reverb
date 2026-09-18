@@ -1,7 +1,7 @@
-"""Map domain and validation errors to the JSON error envelope (design.md §6-3).
+"""ドメイン例外とバリデーション例外を JSON のエラー封筒にマッピングする（design.md §6-3）。
 
-Every error response has the shape ``{"error": {"code": ..., "message": ...}}``
-so clients never see two envelope formats.
+すべてのエラーレスポンスは ``{"error": {"code": ..., "message": ...}}`` の形を取り、
+クライアントが2種類の封筒を見ることがないようにする。
 """
 
 import logging
@@ -31,8 +31,8 @@ def register_exception_handlers(app: FastAPI) -> None:
     async def _handle_validation_error(
         _request: Request, _exc: RequestValidationError
     ) -> JSONResponse:
-        # Own handler so input errors share the envelope with domain errors.
-        # Clients tell this apart from InvalidStateTransitionError by the code.
+        # 専用ハンドラを置くことで、入力エラーもドメイン例外と同じ封筒を共有する。
+        # クライアントは code で InvalidStateTransitionError と区別できる。
         return JSONResponse(
             status_code=422,
             content=_envelope("validation_error", "request validation failed"),
@@ -40,8 +40,8 @@ def register_exception_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(Exception)
     async def _handle_unexpected(_request: Request, exc: Exception) -> JSONResponse:
-        # Last resort. A commit failing after the Service returned surfaces here
-        # (design.md §4-4) — log it, never swallow it silently.
+        # 最後の受け皿。Service が正常に戻った後の commit 失敗もここに現れる
+        # （design.md §4-4）— 必ずログに残し、黒く握り潰さない。
         logger.error("unhandled exception", exc_info=exc)
         return JSONResponse(
             status_code=500,

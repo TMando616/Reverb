@@ -1,13 +1,13 @@
-"""Application exception hierarchy (design.md §6-3).
+"""アプリケーションの例外階層（design.md §6-3）。
 
-Services raise these; ``exception_handlers`` maps each to an HTTP status and the
-``{"error": {"code", "message"}}`` envelope. Services never import FastAPI, so
-they must not raise ``HTTPException``.
+Service はこれらを投げる。``exception_handlers`` が各例外を HTTP ステータスと
+``{"error": {"code", "message"}}`` の封筒にマッピングする。Service は FastAPI を
+import しないので、``HTTPException`` を投げてはいけない。
 """
 
 
 class AppError(Exception):
-    """Base class for domain errors. Subclasses set ``status`` and ``code``."""
+    """ドメイン例外の基底クラス。サブクラスが ``status`` と ``code`` を設定する。"""
 
     status: int = 500
     code: str = "internal_error"
@@ -18,7 +18,7 @@ class AppError(Exception):
 
 
 class AuthenticationError(AppError):
-    """Missing / invalid / expired / revoked token, or failed login."""
+    """トークンが無い・不正・期限切れ・失効、またはログイン失敗。"""
 
     status = 401
     code = "authentication_error"
@@ -28,7 +28,7 @@ class AuthenticationError(AppError):
 
 
 class ForbiddenError(AppError):
-    """Authenticated but lacks permission (includes demo write attempts)."""
+    """認証は通ったが権限が無い（demo の書き込み試行も含む）。"""
 
     status = 403
     code = "forbidden"
@@ -38,7 +38,7 @@ class ForbiddenError(AppError):
 
 
 class NotFoundError(AppError):
-    """Resource absent, hidden from a non-member, or an invalid invite token."""
+    """リソースが存在しない、非メンバーから隠されている、または無効な招待トークン。"""
 
     status = 404
     code = "not_found"
@@ -48,7 +48,7 @@ class NotFoundError(AppError):
 
 
 class VersionConflictError(AppError):
-    """``expected_version`` mismatch or ``StaleDataError`` (design.md §3-3)."""
+    """``expected_version`` の不一致、または ``StaleDataError``（design.md §3-3）。"""
 
     status = 409
     code = "version_conflict"
@@ -58,7 +58,7 @@ class VersionConflictError(AppError):
 
 
 class InvalidStateTransitionError(AppError):
-    """A content status transition the table does not allow (design.md §8)."""
+    """遷移表で許可されていないコンテンツの状態遷移（design.md §8）。"""
 
     status = 422
     code = "invalid_state_transition"

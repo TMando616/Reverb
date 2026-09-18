@@ -1,7 +1,7 @@
-"""Pydantic request/response schemas for the projects module.
+"""projects モジュールの Pydantic リクエスト/レスポンススキーマ。
 
-Kept separate from models.py on purpose: the shape of the API contract and the
-shape of a table change for different reasons (structure.md, ADR-0002 §理由3).
+models.py とは意図的に分けている：API 契約の形とテーブルの形は変わる理由が
+異なるため（structure.md、ADR-0002 §理由3）。
 """
 
 from datetime import datetime
@@ -16,7 +16,7 @@ class ProjectCreateRequest(BaseModel):
 
 
 class ProjectOut(BaseModel):
-    """A project with the caller's own role attached (design.md §6-1)."""
+    """呼び出し元自身の role を添えた企画（design.md §6-1）。"""
 
     id: int
     name: str
@@ -26,13 +26,13 @@ class ProjectOut(BaseModel):
 
 class InvitationCreateRequest(BaseModel):
     role: Role
-    # Recorded only; M0 sends nothing. A free-form string, not EmailStr, to keep
-    # the optional email-validator dependency out of the build (design.md §9-1).
+    # 記録のみ。M0 では送信しない。任意のメール送信基盤を依存に増やさないため、
+    # EmailStr ではなく自由記述の文字列にしている（design.md §9-1）。
     email: str | None = Field(default=None, max_length=320)
 
 
 class InvitationOut(BaseModel):
-    """The accept path is the only place the raw token appears (design.md §9-1)."""
+    """生のトークンが現れる唯一の場所が accept_path（design.md §9-1）。"""
 
     accept_path: str
     role: Role
@@ -62,12 +62,12 @@ class MemberRoleOut(BaseModel):
 
 
 class InvitationAcceptRequest(BaseModel):
-    # Required only on the anonymous path; the service enforces that (design.md §9-1).
+    # 未ログイン経路でのみ必須。その強制は service 側が行う（design.md §9-1）。
     display_name: str | None = Field(default=None, min_length=1, max_length=100)
     password: str | None = Field(default=None, min_length=1)
 
 
 class InvitationAcceptOut(BaseModel):
     project_id: int
-    # The role actually held — may differ from the invitation's (design.md §9-2).
+    # 実際に保持している role ── 招待の role とは異なることがある（design.md §9-2）。
     role: Role

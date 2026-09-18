@@ -1,4 +1,4 @@
-"""Unit tests for ``ProjectService`` (design.md §5-2 / §5-3, tasks.md §3.8)."""
+"""``ProjectService`` のユニットテスト（design.md §5-2 / §5-3、tasks.md §3.8）。"""
 
 import pytest
 from app.core.authorization import Actor, ProjectAuthorizer, Role
@@ -64,7 +64,7 @@ async def test_list_mine_returns_each_project_with_a_role() -> None:
 
 
 async def test_demo_member_may_still_read_a_project() -> None:
-    # Demo is clamped to VIEW_ONLY, not blocked from reads (design.md §5-2).
+    # demo は VIEW_ONLY に固定されるだけで、読み取り自体は塞がれない（design.md §5-2）。
     projects = FakeProjectRepository()
     project = await projects.create(name="Reverb", created_by=1)
     members = FakeProjectMemberRepository(members=[(project.id, 1, Role.OWNER)])

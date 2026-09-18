@@ -1,8 +1,8 @@
-"""HTTP controller for the projects module — DTO validation and status codes only.
+"""projects モジュールの HTTP コントローラ ── DTO の検証とステータスコードのみ。
 
-No business decisions here; those live in service.py (ADR-0009). Authorization
-runs inside the services, not as a router guard, so non-HTTP callers get the
-same checks (design.md §5-2, F5).
+業務判断はここに置かない。それは service.py の責務（ADR-0009）。認可は
+router のガードとしてではなく service の内部で走るので、HTTP 以外の呼び出し元
+（MCP・ジョブ）も同じチェックを受ける（design.md §5-2、F5）。
 """
 
 from typing import Annotated

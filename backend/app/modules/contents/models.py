@@ -1,7 +1,7 @@
-"""ORM models for the contents module (コンテンツ CRUD・状態遷移).
+"""contents モジュールの ORM モデル（コンテンツ CRUD・状態遷移）。
 
-Tables land here in the foundation spec (design.md §3). Only this file and
-repository.py may import ``sqlalchemy`` inside a module.
+テーブル定義は foundation スペックでここに置く（design.md §3）。モジュール内で
+``sqlalchemy`` を import できるのはこのファイルと repository.py だけ。
 """
 
 from datetime import datetime
@@ -14,7 +14,7 @@ from app.core.db import Base, TimestampMixin
 
 
 class ContentStatus(StrEnum):
-    """English identifiers in code; the UI maps them to Japanese labels (design.md §3-2)."""
+    """コード上の識別子は英語。UI がこれを日本語ラベルに対応づける（design.md §3-2）。"""
 
     INBOX = "inbox"
     ADOPTED = "adopted"
@@ -24,23 +24,24 @@ class ContentStatus(StrEnum):
     SHELVED = "shelved"
 
 
-# Plain string column + app-level StrEnum, guarded by a CHECK, so adding a status
-# never needs a migration on an ENUM type (design.md §3-2).
+# 素の文字列カラム + アプリ側 StrEnum を CHECK 制約で守る形にしているので、
+# status を増やすときも ENUM 型のマイグレーションが要らない（design.md §3-2）。
 _STATUS_CHECK = "status IN ({})".format(", ".join(f"'{s.value}'" for s in ContentStatus))
 
 
 class Content(TimestampMixin, Base):
-    """A piece of content that moves from inbox to published inside one project.
+    """1つの企画の中で inbox から published まで動くコンテンツ。
 
-    ``version`` is SQLAlchemy's ``version_id_col``: every flushed UPDATE carries
-    ``WHERE version = ?`` and bumps it, which is the second half of the two-stage
-    optimistic lock (design.md §3-3). Deletion is logical via ``deleted_at``.
+    ``version`` は SQLAlchemy の ``version_id_col``：flush される UPDATE は
+    毎回 ``WHERE version = ?`` を伴い、version を +1 する。これが二段の楽観ロックの
+    後半段にあたる（design.md §3-3）。削除は ``deleted_at`` による論理削除。
     """
 
     __tablename__ = "contents"
     __table_args__ = (
         CheckConstraint(_STATUS_CHECK, name="ck_contents_status"),
-        # The main read path: one project's contents, optionally by status (design.md §3-2).
+        # 主要な読み取り経路：1企画のコンテンツを、任意で status 絞り込み付きで
+        # 取得する（design.md §3-2）。
         Index("ix_contents_project_id_status", "project_id", "status"),
     )
 
@@ -59,18 +60,18 @@ class Content(TimestampMixin, Base):
 
     __mapper_args__ = {
         "version_id_col": version,
-        # Fetch server-generated values (created_at / updated_at) via RETURNING on
-        # INSERT and UPDATE. Without it they are expired after flush and reading
-        # them for the response would trigger an implicit async load.
+        # INSERT / UPDATE の RETURNING でサーバー生成値（created_at / updated_at）
+        # を取得する。これを付けないと flush 後にこれらが expire され、レスポンス
+        # のために読んだ瞬間に暗黙の非同期ロードが走ってしまう。
         "eager_defaults": True,
     }
 
 
 class ContentStatusTransition(Base):
-    """Append-only log of status changes, one row per transition (design.md §8-2).
+    """状態遷移の追記専用ログ。遷移1回につき1行（design.md §8-2）。
 
-    Kept apart from the body history (``content_revisions``, a later spec)
-    because the two change for different reasons (design.md §3-2).
+    本文の履歴（``content_revisions``、後続スペック）とは別テーブルにしている。
+    2つは変更される理由が違うため（design.md §3-2）。
     """
 
     __tablename__ = "content_status_transitions"

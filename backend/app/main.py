@@ -1,4 +1,4 @@
-"""Application factory: create the app, register routers and exception handlers."""
+"""アプリケーションファクトリ：app を生成し、router と例外ハンドラを登録する。"""
 
 from fastapi import FastAPI
 

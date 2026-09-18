@@ -1,9 +1,9 @@
-"""Unit tests for the bootstrap CLI (design.md §9-0).
+"""bootstrap CLI のユニットテスト（design.md §9-0）。
 
-Only the password resolution is covered here: it is the one branch with real
-logic that never reaches a repository, and it is what keeps the password out of
-argv and the shell history. The commands themselves are thin wrappers over
-already-tested repositories and ``InvitationService``.
+ここでカバーするのはパスワード解決だけ：repository に一切触れない、実質的な
+ロジックを持つ唯一の分岐であり、パスワードを argv やシェル履歴から遠ざけている
+部分。コマンド本体は、すでにテスト済みの repository と ``InvitationService`` の
+薄いラッパーに過ぎない。
 """
 
 import pytest
@@ -46,8 +46,8 @@ def test_rejects_an_empty_password(monkeypatch):
 
 
 def test_refuses_to_prompt_without_a_tty(monkeypatch):
-    # Non-interactive runs (CI, `docker compose exec -T`) must be told to
-    # generate rather than block on a prompt nobody can answer.
+    # 非対話実行（CI・``docker compose exec -T``）では誰も答えられないプロンプトで
+    # 止めず、生成するように伝える必要がある。
     monkeypatch.setattr("sys.stdin.isatty", lambda: False)
 
     with pytest.raises(CommandError, match="--generate-password"):

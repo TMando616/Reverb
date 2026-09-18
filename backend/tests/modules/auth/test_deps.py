@@ -1,4 +1,4 @@
-"""Unit tests for ``get_current_actor`` / ``get_current_token`` (design.md §4-3)."""
+"""``get_current_actor`` / ``get_current_token`` のユニットテスト（design.md §4-3）。"""
 
 from types import SimpleNamespace
 
@@ -41,8 +41,8 @@ async def test_valid_token_resolves_to_an_actor(monkeypatch: pytest.MonkeyPatch)
 async def test_unknown_or_revoked_or_expired_token_is_401(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    # ``find_valid_with_user`` returning None covers all three cases; the SQL
-    # filter itself is exercised by the integration tests (tasks.md §7).
+    # ``find_valid_with_user`` が None を返すケースが3パターン全部をカバーする。
+    # SQL フィルタ自体は結合テスト（tasks.md §7）で検証する。
     fake = FakeSessionRepository({})
     monkeypatch.setattr(deps_module, "SessionRepository", lambda _session: fake)
 
