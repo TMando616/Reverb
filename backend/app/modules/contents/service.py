@@ -13,6 +13,22 @@ from app.core.exceptions import NotFoundError, VersionConflictError
 from app.modules.contents.models import Content, ContentStatus
 from app.modules.contents.repository import ContentRepository, ContentTransitionRepository
 
+# 状態遷移表（design.md §8-1 の確定表）。キーが from、値が遷移してよい to の集合。
+# in_review → published は含めない：公開処理と一体で行うため publishing スペックが
+# この集合に足して解禁する（表を書き換えず集合に足す設計・design.md §8-2）。
+ALLOWED: dict[ContentStatus, frozenset[ContentStatus]] = {
+    ContentStatus.INBOX: frozenset({ContentStatus.ADOPTED, ContentStatus.SHELVED}),
+    ContentStatus.ADOPTED: frozenset(
+        {ContentStatus.INBOX, ContentStatus.DRAFTING, ContentStatus.SHELVED}
+    ),
+    ContentStatus.DRAFTING: frozenset(
+        {ContentStatus.ADOPTED, ContentStatus.IN_REVIEW, ContentStatus.SHELVED}
+    ),
+    ContentStatus.IN_REVIEW: frozenset({ContentStatus.DRAFTING, ContentStatus.SHELVED}),
+    ContentStatus.PUBLISHED: frozenset(),
+    ContentStatus.SHELVED: frozenset({ContentStatus.INBOX}),
+}
+
 
 class ContentService:
     def __init__(
