@@ -9,7 +9,11 @@ HTTP のことは知らない（``fastapi`` / ``Request`` は import しない�
 from collections.abc import Sequence
 
 from app.core.authorization import Actor, Permission, ProjectAuthorizer
-from app.core.exceptions import NotFoundError, VersionConflictError
+from app.core.exceptions import (
+    InvalidStateTransitionError,
+    NotFoundError,
+    VersionConflictError,
+)
 from app.modules.contents.models import Content, ContentStatus
 from app.modules.contents.repository import ContentRepository, ContentTransitionRepository
 
@@ -98,6 +102,36 @@ class ContentService:
         await self._authz.require(actor, project_id, Permission.CONTENT_WRITE)
         content = await self._get_or_404(content_id, project_id)
         await self._contents.soft_delete(content)
+
+    async def transition(
+        self,
+        actor: Actor,
+        project_id: int,
+        content_id: int,
+        to: ContentStatus,
+        expected_version: int,
+    ) -> Content:
+        """status を遷移表（``ALLOWED``）に従って動かし、遷移ログを1行残す（design.md §8-2）。
+
+        version 照合を遷移表チェックより先に行う：古い画面から送られた遷移は、
+        遷移の可否より「状態が変わっていた」ことを伝える方がクライアントに役立つため。
+        同時に走った二重遷移は、片方が flush 時の ``WHERE version = ?`` で 409 になる。
+        """
+        await self._authz.require(actor, project_id, Permission.CONTENT_TRANSITION)
+        content = await self._get_or_404(content_id, project_id)
+        self._check_version(content, expected_version)
+        current = ContentStatus(content.status)
+        if to not in ALLOWED[current]:
+            raise InvalidStateTransitionError(f"cannot transition from {current} to {to}")
+        content.status = to.value
+        await self._contents.flush()
+        await self._transitions.add(
+            content_id=content.id,
+            from_status=current,
+            to_status=to,
+            actor_user_id=actor.user_id,
+        )
+        return content
 
     async def _get_or_404(self, content_id: int, project_id: int) -> Content:
         # project_id で絞り込んでいるので、他企画のコンテンツ id は単に「無い」。
