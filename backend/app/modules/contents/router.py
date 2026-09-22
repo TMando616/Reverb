@@ -70,6 +70,20 @@ async def update_content(
     return schemas.ContentOut.model_validate(content)
 
 
+@router.post("/{content_id}/transition", response_model=schemas.ContentOut)
+async def transition_content(
+    project_id: int,
+    content_id: int,
+    body: schemas.ContentTransitionRequest,
+    actor: CurrentActor,
+    service: ContentServiceDep,
+) -> schemas.ContentOut:
+    content = await service.transition(
+        actor, project_id, content_id, body.to, body.expected_version
+    )
+    return schemas.ContentOut.model_validate(content)
+
+
 @router.delete("/{content_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_content(
     project_id: int, content_id: int, actor: CurrentActor, service: ContentServiceDep

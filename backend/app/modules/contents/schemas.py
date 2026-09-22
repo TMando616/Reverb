@@ -26,6 +26,13 @@ class ContentUpdateRequest(BaseModel):
     expected_version: int
 
 
+class ContentTransitionRequest(BaseModel):
+    """遷移先と、読み込んだときの version。遷移も楽観ロックの対象（design.md §8-2）。"""
+
+    to: ContentStatus
+    expected_version: int
+
+
 class ContentOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
