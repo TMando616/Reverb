@@ -70,7 +70,7 @@
 - [x] 6.1 `ALLOWED` 集合を `contents` モジュール定数として実装（`design.md` §8-1 の確定表）。`in_review → published` は含めない
 - [x] 6.2 `ContentService.transition(actor, project_id, content_id, to, expected_version)`：認可 `CONTENT_TRANSITION` → 取得(404) → version 照合(409) → `to not in ALLOWED[status]` → 422 → status 更新 + flush（version +1）→ `content_status_transitions` に1行
 - [x] 6.3 ルーター：`POST /projects/{id}/contents/{cid}/transition`（`to` / `expected_version`）
-- [ ] 6.4 ユニットテスト：`inbox→published` は 422 ／許可された遷移は成功し version +1 と遷移ログ1行 ／reviewer・demo→403 ／同時二重遷移の一方が 409
+- [x] 6.4 ユニットテスト：`inbox→published` は 422 ／許可された遷移は成功し version +1 と遷移ログ1行 ／reviewer・demo→403 ／同時二重遷移の一方が 409
 
 ## 7. 結合テストと API 仕様の仕上げ（F9）
 
