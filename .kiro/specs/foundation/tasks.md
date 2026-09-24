@@ -76,7 +76,7 @@
 
 - [x] 7.1 テスト基盤：外側トランザクション + `join_transaction_mode="create_savepoint"` の `db_session` フィクスチャ（§13-1）。`dependency_overrides[get_session]`
 - [x] 7.2 認証済みクライアントのフィクスチャ（`POST /auth/login` を1回叩く。`users` はフィクスチャで直接作成）
-- [ ] 7.3 主経路の結合テスト：ログイン → 企画作成 → コンテンツ登録 → `inbox→adopted→drafting`
+- [x] 7.3 主経路の結合テスト：ログイン → 企画作成 → コンテンツ登録 → `inbox→adopted→drafting`
 - [ ] 7.4 エラー系統の結合テスト：401 / 403 / 404 / 409 / 422 を各1本以上
 - [ ] 7.5 `/openapi.json` が参照でき、全エンドポイントが載っていることを確認
 - [ ] 7.6 CI（既存 `ci.yml`）で `ruff` / `ruff format` / `mypy` / `lint-imports` / `pytest` すべて緑
