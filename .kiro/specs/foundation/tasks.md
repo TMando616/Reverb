@@ -79,7 +79,7 @@
 - [x] 7.3 主経路の結合テスト：ログイン → 企画作成 → コンテンツ登録 → `inbox→adopted→drafting`
 - [x] 7.4 エラー系統の結合テスト：401 / 403 / 404 / 409 / 422 を各1本以上
 - [x] 7.5 `/openapi.json` が参照でき、全エンドポイントが載っていることを確認
-- [ ] 7.6 CI（既存 `ci.yml`）で `ruff` / `ruff format` / `mypy` / `lint-imports` / `pytest` すべて緑
+- [x] 7.6 CI（既存 `ci.yml`）で `ruff` / `ruff format` / `mypy` / `lint-imports` / `pytest` すべて緑
 
 ## 8. フロントエンド — BFF と最小画面（`design.md` §12 / M0 判定の総仕上げ）
 

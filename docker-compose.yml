@@ -19,6 +19,8 @@ services:
     build: ./backend
     environment:
       DATABASE_URL: postgresql+asyncpg://reverb:reverb@db:5432/reverb
+      # 結合テスト用の別データベース。無ければ conftest が作る（design.md §13-1）。
+      TEST_DATABASE_URL: postgresql+asyncpg://reverb:reverb@db:5432/reverb_test
       SECRET_KEY: change-me-in-local
     ports:
       - "8000:8000"

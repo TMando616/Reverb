@@ -11,6 +11,22 @@ jobs:
     defaults:
       run:
         working-directory: backend
+    # 結合テスト（tasks.md §7）は実 DB を使う。ローカルの docker-compose と同じ
+    # イメージ・同じ資格情報にそろえておく。
+    services:
+      db:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: reverb
+          POSTGRES_PASSWORD: reverb
+          POSTGRES_DB: reverb
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U reverb"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
 
@@ -35,4 +51,7 @@ jobs:
         run: uv run lint-imports
 
       - name: pytest
+        # テスト用 DB（reverb_test）は conftest が無ければ作る。
+        env:
+          TEST_DATABASE_URL: postgresql+asyncpg://reverb:reverb@localhost:5432/reverb_test
         run: uv run pytest
