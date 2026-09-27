@@ -46,3 +46,4 @@
 | [0012](0012-fastapi.md) | バックエンドフレームワークを NestJS から FastAPI に変更する | **採用** |
 | [0013](0013-async-jobs-python.md) | Python の非同期ジョブ基盤を選定する | 検討中 |
 | [0014](0014-auth-token-and-bff.md) | 認証トークンの保持場所と API 呼び出し経路（BFF） | **採用** |
+| [0015](0015-frontend-styling-and-data-fetching.md) | フロントのスタイリングとデータフェッチ層 | **採用** |

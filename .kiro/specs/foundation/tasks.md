@@ -83,7 +83,7 @@
 
 ## 8. フロントエンド — BFF と最小画面（`design.md` §12 / M0 判定の総仕上げ）
 
-- [ ] 8.1 **【要決定】** `frontend.md` §7 の未決を確定（スタイリング：Tailwind / CSS Modules、データフェッチ層の採否）。必要なら ADR を1本
+- [x] 8.1 **【要決定】** `frontend.md` §7 の未決を確定（スタイリング：Tailwind / CSS Modules、データフェッチ層の採否）。必要なら ADR を1本
 - [ ] 8.2 `frontend/` を Next.js 16 で作成。作法は `frontend/node_modules/next/dist/docs/` を見て確定（記憶で書かない）
 - [ ] 8.3 BFF ルート（`app/api/`）：`auth/login`（token を httpOnly Cookie へ / `Secure` は本番のみ / `maxAge` は `expires_at` から算出）、`auth/logout`、`auth/session`、`projects/**` と `invitations/**` のパススルー（業務判断なし）
 - [ ] 8.4 画面：`/login`、`/invite/[token]`、`/projects`（Server Component で一覧＋作成）、`/projects/[id]`（status 別リスト＋作成＋行の遷移操作）

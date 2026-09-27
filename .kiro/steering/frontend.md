@@ -120,7 +120,9 @@ frontend/
 
 ## 7. 未決事項
 
-- [ ] スタイリング（Tailwind CSS / CSS Modules）→ M0 で決める
-- [ ] データフェッチ層（TanStack Query 等の採用可否）→ M0 で決める。**§2 の3分類を満たせることが条件**
+- [x] スタイリング → **Tailwind CSS**（ADR-0015）。バージョンごとの設定の作法は `frontend/node_modules/` を見て確定する
+- [x] データフェッチ層 → **M0 では採用しない**（ADR-0015）。採否は `content-pipeline` で、編集ロックのプッシュを
+  キャッシュへ反映する検証と併せて決める。**§2 の3分類を満たせることが条件**
+- [ ] `components/ui/` に使う非スタイル部品（Radix 等）→ M0 の画面作成時（tasks.md §8.4）に決める
 - [ ] Markdown エディタ（CodeMirror 6 / tiptap）→ **自作しない**（tech.md）
 - [ ] グラフライブラリ → M2（ダッシュボード着手時）
