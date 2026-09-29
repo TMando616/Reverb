@@ -172,4 +172,17 @@ docker compose exec backend uv run python -m app.cli accept-invitation \
 
 ### フロントエンド
 
-`frontend/` は `tasks.md` §8 で作成する。コマンドはその時点で追記する。
+Next.js 16 / React 19 / Tailwind CSS v4（ADR-0015）。**依存は npm。**
+
+```bash
+cd frontend
+npm run dev        # http://localhost:3000（compose なら docker compose up で一緒に立つ）
+npm run lint       # ESLint
+npx next typegen   # 型の生成（LayoutProps 等）。tsc より先に必要
+npx tsc --noEmit   # 型チェック
+npm run build      # 本番ビルド
+```
+
+- **`npx next typegen` を忘れると `tsc` が `LayoutProps` を見つけられずに落ちる。** 生成物は gitignore してあるため、CI も同じ順番で走らせている
+- BFF から FastAPI を呼ぶ先は `API_BASE_URL`（compose では `http://backend:8000`）。**ブラウザには出さない**
+- Next.js 16 の作法は `frontend/node_modules/next/dist/docs/` を見る（`frontend/AGENTS.md` も同じことを要求している）
