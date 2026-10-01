@@ -29,7 +29,9 @@ export function ContentRow({ content, action }: Props) {
       <form action={formAction} className="flex flex-wrap items-center gap-2">
         <input type="hidden" name="content_id" value={content.id} />
         <input type="hidden" name="expected_version" value={content.version} />
-        {ALLOWED_TRANSITIONS[content.status].map((to) => (
+        {/* 型は暫定の手書き（lib/api/types.ts）なので、API 側が status を増やしても
+            画面が落ちないようにフォールバックを置く。 */}
+        {(ALLOWED_TRANSITIONS[content.status] ?? []).map((to) => (
           <button
             key={to}
             type="submit"

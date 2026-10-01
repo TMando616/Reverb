@@ -25,6 +25,10 @@ const STATUS_ORDER: ContentStatus[] = [
 export default async function ProjectPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const projectId = Number(id);
+  // /projects/abc は NaN になる。API に投げると 422 で落ちるので、ここで 404 にする。
+  if (!Number.isInteger(projectId)) {
+    notFound();
+  }
 
   const [project, contents] = await Promise.all([
     apiFetch<Project>(`/projects/${projectId}`),
@@ -36,7 +40,16 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
       if (result.status === 401) redirect("/login");
       // 非メンバーには存在も伏せる（API が 404 を返す・design.md §5-2）。
       if (result.status === 404) notFound();
-      throw new Error(result.error.message);
+      return (
+        <main className="mx-auto flex w-full max-w-2xl flex-col gap-4 px-4 py-10">
+          <Link href="/projects" className="text-sm text-gray-500 hover:underline">
+            ← 企画一覧
+          </Link>
+          <p className="text-sm text-red-600">
+            読み込めませんでした（{result.status}: {result.error.code}）。
+          </p>
+        </main>
+      );
     }
   }
   if (!project.ok || !contents.ok) return null; // 上のループで抜けているので到達しない

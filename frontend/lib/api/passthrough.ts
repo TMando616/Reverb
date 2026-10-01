@@ -13,9 +13,17 @@ export async function passthrough(request: Request, segments: string[]): Promise
   const url = new URL(request.url);
   const path = `/${segments.join("/")}${url.search}`;
   const method = request.method;
-  const body = method === "GET" || method === "DELETE" ? undefined : await request.text();
+  const text = method === "GET" || method === "DELETE" ? "" : await request.text();
+  // 空ボディに Content-Type: application/json を付けて送ると FastAPI 側で無関係な
+  // 422 になるので、中身があるときだけ送り、種類は受け取ったものをそのまま使う。
+  const body = text === "" ? undefined : text;
+  const contentType = request.headers.get("Content-Type");
+  const headers: Record<string, string> = {};
+  if (body !== undefined && contentType !== null) {
+    headers["Content-Type"] = contentType;
+  }
 
-  const result = await apiFetch<unknown>(path, { method, body });
+  const result = await apiFetch<unknown>(path, { method, body, headers });
   if (!result.ok) {
     return Response.json({ error: result.error }, { status: result.status });
   }

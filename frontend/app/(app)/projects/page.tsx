@@ -13,7 +13,15 @@ export default async function ProjectsPage() {
     if (result.status === 401) {
       redirect("/login");
     }
-    throw new Error(result.error.message);
+    // API が落ちている・繋がらないときは 500 ページにせず、何が起きたかを出す。
+    return (
+      <main className="mx-auto flex w-full max-w-2xl flex-col gap-4 px-4 py-10">
+        <h1 className="text-xl font-bold">企画</h1>
+        <p className="text-sm text-red-600">
+          企画を読み込めませんでした（{result.status}: {result.error.code}）。
+        </p>
+      </main>
+    );
   }
 
   return (

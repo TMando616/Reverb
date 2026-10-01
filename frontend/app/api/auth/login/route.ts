@@ -25,6 +25,13 @@ export async function POST(request: Request) {
     return Response.json({ error: result.error }, { status: result.status });
   }
 
-  await setSessionCookie(result.data.token, result.data.expires_at);
+  const stored = await setSessionCookie(result.data.token, result.data.expires_at);
+  if (!stored) {
+    // 期限切れのトークンを渡された。Cookie を置けないので成功として返さない。
+    return Response.json(
+      { error: { code: "authentication_error", message: "セッションを開始できませんでした" } },
+      { status: 401 },
+    );
+  }
   return Response.json({ user: result.data.user });
 }

@@ -22,8 +22,15 @@ export async function getSessionToken(): Promise<string | undefined> {
  * 持つと、サーバー側の失効と Cookie の寿命がズレて「Cookie はあるが 401」が
  * 起き続ける（design.md §12-1）。
  */
-export async function setSessionCookie(token: string, expiresAt: string): Promise<void> {
-  const maxAge = Math.max(0, Math.floor((Date.parse(expiresAt) - Date.now()) / 1000));
+export async function setSessionCookie(token: string, expiresAt: string): Promise<boolean> {
+  const maxAge = Math.floor((Date.parse(expiresAt) - Date.now()) / 1000);
+  // maxAge が 0 以下だとブラウザは Cookie を即削除する。「ログインは成功したが
+  // Cookie が無い」状態で遷移すると 401 → /login の往復が無言で続くので、
+  // 呼び出し側に失敗として返す。
+  if (!Number.isFinite(maxAge) || maxAge <= 0) {
+    return false;
+  }
+
   const store = await cookies();
   store.set(SESSION_COOKIE, token, {
     httpOnly: true,
@@ -33,6 +40,7 @@ export async function setSessionCookie(token: string, expiresAt: string): Promis
     path: "/",
     maxAge,
   });
+  return true;
 }
 
 export async function clearSessionCookie(): Promise<void> {

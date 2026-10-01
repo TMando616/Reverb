@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 
 import { apiFetch } from "@/lib/api/server";
 import type { InvitationAccepted } from "@/lib/api/types";
-import { getSessionToken } from "@/lib/auth/session";
+import { clearSessionCookie, getSessionToken } from "@/lib/auth/session";
 
 export type AcceptState = { message: string };
 
@@ -27,6 +27,12 @@ export async function acceptInvitation(
   });
 
   if (!result.ok) {
+    if (result.status === 401) {
+      // Cookie はあるがトークンが失効している。持っていないのと同じ扱いにしないと、
+      // 入力欄が隠れたまま受諾できない状態で詰まる。
+      await clearSessionCookie();
+      redirect(`/invite/${token}`);
+    }
     if (result.status === 404) {
       return { message: "この招待リンクは使えません（期限切れ・受諾済みの可能性があります）" };
     }

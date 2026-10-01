@@ -19,10 +19,19 @@ export async function login(_prev: LoginState, formData: FormData): Promise<Logi
   });
 
   if (!result.ok) {
-    // 401 の文面は API 側に寄せる（列挙対策で「どちらが違うか」を出さない・design.md §4-2）。
-    return { message: "メールアドレスかパスワードが違います" };
+    // 401 は「どちらが違うか」を出さない（列挙対策・design.md §4-2）。それ以外は
+    // 資格情報の問題ではないので、正しいパスワードを打ち直させない文面にする。
+    return {
+      message:
+        result.status === 401
+          ? "メールアドレスかパスワードが違います"
+          : "ログインできませんでした。時間をおいて試してください",
+    };
   }
 
-  await setSessionCookie(result.data.token, result.data.expires_at);
+  const stored = await setSessionCookie(result.data.token, result.data.expires_at);
+  if (!stored) {
+    return { message: "ログインできませんでした。時間をおいて試してください" };
+  }
   redirect("/projects");
 }

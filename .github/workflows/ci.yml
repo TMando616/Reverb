@@ -77,7 +77,11 @@ jobs:
         run: npm run lint
 
       - name: tsc (型チェック)
-        run: npx tsc --noEmit
+        # LayoutProps などの型は Next が生成し、生成物は gitignore してある。
+        # typegen を先に走らせないとクリーンなチェックアウトで TS2304 になる。
+        run: |
+          npx next typegen
+          npx tsc --noEmit
 
       - name: Build
         run: npm run build

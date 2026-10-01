@@ -21,18 +21,35 @@ async function request<T>(
   path: string,
   init: RequestInit & { token?: string | undefined } = {},
 ): Promise<ApiResult<T>> {
-  const { token, headers, ...rest } = init;
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...rest,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...headers,
-    },
-    // 認証付きの読み取りをキャッシュに載せない。既定でもキャッシュされないが、
-    // 取り違えると他人のデータを配ることになるので明示する。
-    cache: "no-store",
-  });
+  const { token, headers: given, ...rest } = init;
+  // Headers インスタンスや string[][] を受けても落とさないよう Headers に正規化する
+  // （オブジェクトのスプレッドだと Headers は空になり、全ヘッダーが消える）。
+  const headers = new Headers(given);
+  if (!headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+  if (token !== undefined) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      ...rest,
+      headers,
+      // 認証付きの読み取りをキャッシュに載せない。既定でもキャッシュされないが、
+      // 取り違えると他人のデータを配ることになるので明示する。
+      cache: "no-store",
+    });
+  } catch {
+    // fetch は接続拒否・名前解決失敗で reject する。ここで捕まえないと Server
+    // Component では 500 ページ、Server Function では画面に何も出ない。
+    return {
+      ok: false,
+      status: 503,
+      error: { code: "network_error", message: "API に接続できません" },
+    };
+  }
 
   const status = response.status;
   if (status === 204) {

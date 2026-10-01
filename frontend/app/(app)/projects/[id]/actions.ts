@@ -7,10 +7,11 @@ import type { Content, ContentStatus } from "@/lib/api/types";
 
 export type ContentFormState = { message: string };
 
-function messageFor(status: number, fallback: string): string {
+/** 作成と遷移で共通のもの。422 は意味が違う（入力不正 / 遷移不可）ので含めない。 */
+function commonMessage(status: number, fallback: string): string {
   if (status === 403) return "この操作の権限がありません";
-  if (status === 409) return "他の人が先に更新しました。画面を読み込み直してください";
-  if (status === 422) return "その状態へは進められません";
+  if (status === 404) return "対象が見つかりません。画面を読み込み直してください";
+  if (status === 503) return "サーバーに接続できませんでした";
   return fallback;
 }
 
@@ -30,7 +31,12 @@ export async function createContent(
   });
 
   if (!result.ok) {
-    return { message: messageFor(result.status, result.error.message) };
+    // 作成の 422 は入力が通らなかったということ（タイトルの長さなど）。
+    const message =
+      result.status === 422
+        ? "タイトルが長すぎます（200文字まで）"
+        : commonMessage(result.status, result.error.message);
+    return { message };
   }
 
   revalidatePath(`/projects/${projectId}`);
@@ -59,7 +65,13 @@ export async function transitionContent(
   );
 
   if (!result.ok) {
-    return { message: messageFor(result.status, result.error.message) };
+    if (result.status === 409) {
+      return { message: "他の人が先に更新しました。画面を読み込み直してください" };
+    }
+    if (result.status === 422) {
+      return { message: "その状態へは進められません" };
+    }
+    return { message: commonMessage(result.status, result.error.message) };
   }
 
   revalidatePath(`/projects/${projectId}`);

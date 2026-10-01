@@ -1,36 +1,52 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# frontend — Reverb の画面と BFF
 
-## Getting Started
+Next.js 16（App Router）/ React 19 / TypeScript / Tailwind CSS v4。
+役割は **画面** と **BFF（認証の中継）** だけ。業務ロジックと認可判断は持たない（ADR-0014）。
 
-First, run the development server:
+## 起動
+
+リポジトリのルートから、DB・API と一緒に立てる。
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+docker compose up          # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+単体で動かす場合（API は別途 8000 番で起動しておく）:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm install
+npm run dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## よく使うコマンド
 
-## Learn More
+```bash
+npm run lint      # ESLint
+npx next typegen  # 型の生成（LayoutProps 等）。tsc の前に必要
+npx tsc --noEmit  # 型チェック
+npm run build     # 本番ビルド
+```
 
-To learn more about Next.js, take a look at the following resources:
+## 環境変数
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| 変数 | 用途 | 既定値 |
+|---|---|---|
+| `API_BASE_URL` | BFF から FastAPI を呼ぶ先。**ブラウザには出ない** | `http://localhost:8000`（compose では `http://backend:8000`） |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 構成
 
-## Deploy on Vercel
+| パス | 役割 |
+|---|---|
+| `app/(auth)/` | ログイン・招待受諾 |
+| `app/(app)/` | ログイン後の画面（企画一覧・企画詳細） |
+| `app/api/` | BFF。Cookie ⇄ `Authorization` の載せ替えとパススルーのみ |
+| `lib/api/` | FastAPI を叩くラッパと API の型 |
+| `lib/auth/` | セッション Cookie の読み書き（サーバー側のみ） |
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+詳細な責務境界は `.kiro/steering/frontend.md`、画面の範囲は
+`.kiro/specs/foundation/design.md` §12 を参照。
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 注意
+
+- **Next.js 16 の作法は記憶で書かない。** `node_modules/next/dist/docs/` を見る（`AGENTS.md`）
+- `lib/api/types.ts` は暫定の手書き。OpenAPI からの生成に置き換える（`frontend.md` §4）
