@@ -88,7 +88,7 @@
 - [x] 8.3 BFF ルート（`app/api/`）：`auth/login`（token を httpOnly Cookie へ / `Secure` は本番のみ / `maxAge` は `expires_at` から算出）、`auth/logout`、`auth/session`、`projects/**` と `invitations/**` のパススルー（業務判断なし）
 - [x] 8.4 画面：`/login`、`/invite/[token]`、`/projects`（Server Component で一覧＋作成）、`/projects/[id]`（status 別リスト＋作成＋行の遷移操作）
 - [x] 8.5 `docker-compose.yml` に frontend サービスを追加。CI に frontend の lint / build を追加
-- [ ] 8.6 手動確認：ブラウザで「ログイン → 企画作成 → ネタ登録 → 状態遷移」が通る（**M0 判定**）
+- [x] 8.6 手動確認：ブラウザで「ログイン → 企画作成 → ネタ登録 → 状態遷移」が通る（**M0 判定**）
 
 ---
 
