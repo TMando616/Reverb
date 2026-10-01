@@ -30,7 +30,19 @@ services:
       db:
         condition: service_healthy
 
-  # frontend は Next.js スケルトン作成後に追加する（frontend.md §7 の未決事項を確定してから）
+  frontend:
+    build: ./frontend
+    environment:
+      # ブラウザには出ない。BFF（Next.js のサーバー側）から FastAPI を呼ぶ先（ADR-0014）。
+      API_BASE_URL: http://backend:8000
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      # node_modules はイメージ側を使う。ホスト（macOS）で入れたものを持ち込まない。
+      - /app/node_modules
+    depends_on:
+      - backend
 
 volumes:
   db_data:

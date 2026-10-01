@@ -55,3 +55,29 @@ jobs:
         env:
           TEST_DATABASE_URL: postgresql+asyncpg://reverb:reverb@localhost:5432/reverb_test
         run: uv run pytest
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: ESLint
+        run: npm run lint
+
+      - name: tsc (型チェック)
+        run: npx tsc --noEmit
+
+      - name: Build
+        run: npm run build
