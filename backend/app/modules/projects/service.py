@@ -19,7 +19,7 @@ from app.core.authorization import (
 )
 from app.core.exceptions import AuthenticationError, ForbiddenError, NotFoundError
 from app.core.security import generate_token, hash_password_async, hash_token
-from app.modules.auth.repository import UserRepository
+from app.modules.auth.repository import UserRepository, normalize_email
 from app.modules.projects.models import Invitation, Project, ProjectMember
 from app.modules.projects.repository import (
     InvitationRepository,
@@ -124,7 +124,9 @@ class MemberService:
         token = generate_token()
         invitation = await self._invitations.create(
             project_id=project_id,
-            email=email,
+            # users と同じ形に揃えておく。受諾時の突き合わせ（下の get_by_email）が
+            # 大文字小文字で食い違わないようにするため。
+            email=normalize_email(email) if email is not None else None,
             role=role,
             token_hash=hash_token(token),
             expires_at=datetime.now(UTC) + INVITATION_TTL,

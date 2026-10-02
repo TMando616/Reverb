@@ -17,7 +17,7 @@ from app.modules.auth.repository import SessionRepository, UserRepository
 from app.modules.auth.service import AuthService
 
 
-def _parse_bearer(authorization: str) -> str:
+def parse_bearer(authorization: str) -> str:
     scheme, _, token = authorization.partition(" ")
     if scheme.lower() != "bearer" or not token.strip():
         raise AuthenticationError("malformed Authorization header")
@@ -30,7 +30,7 @@ def get_current_token(authorization: str | None = Header(default=None)) -> str:
     """
     if authorization is None:
         raise AuthenticationError()
-    return _parse_bearer(authorization)
+    return parse_bearer(authorization)
 
 
 async def get_current_actor(

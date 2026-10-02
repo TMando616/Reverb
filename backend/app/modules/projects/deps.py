@@ -13,6 +13,7 @@ from app.core.authorization import Actor, ProjectAuthorizer
 from app.core.db import get_session
 from app.core.exceptions import AuthenticationError
 from app.core.security import hash_token
+from app.modules.auth.deps import parse_bearer
 from app.modules.auth.repository import SessionRepository, UserRepository
 from app.modules.projects.repository import (
     InvitationRepository,
@@ -65,10 +66,9 @@ async def get_optional_actor(
     """
     if authorization is None:
         return None
-    scheme, _, raw = authorization.partition(" ")
-    token = raw.strip()
-    if scheme.lower() != "bearer" or not token:
-        raise AuthenticationError("malformed Authorization header")
+    # ヘッダーの解釈は auth 側と1本に揃える。分けて書くと、片方だけ厳しくした
+    # ときにもう片方（この受諾経路）がすり抜ける。
+    token = parse_bearer(authorization)
     row = await SessionRepository(session).find_valid_with_user(hash_token(token))
     if row is None:
         raise AuthenticationError()

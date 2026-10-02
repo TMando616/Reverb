@@ -28,10 +28,12 @@ async def login(body: schemas.LoginRequest, service: ServiceDep) -> schemas.Logi
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
 async def logout(
-    _actor: CurrentActor,
     token: Annotated[str, Depends(get_current_token)],
     service: ServiceDep,
 ) -> None:
+    # セッションの解決（CurrentActor）は要求しない。失効させたいトークンそのものが
+    # 資格情報なので、期限切れ・失効済みでも 204 を返す（service.logout は冪等）。
+    # ここで 401 にすると、期限切れのタブからログアウトした人が失敗したように見える。
     await service.logout(token)
 
 

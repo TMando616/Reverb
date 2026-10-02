@@ -17,6 +17,7 @@ from app.core.security import hash_password
 from app.main import create_app
 from app.modules.auth import models as _auth_models  # noqa: F401  # Base.metadata への登録
 from app.modules.auth.models import User
+from app.modules.auth.repository import UserRepository
 from app.modules.contents import models as _contents_models  # noqa: F401
 from app.modules.projects import models as _projects_models  # noqa: F401
 from httpx import ASGITransport, AsyncClient
@@ -116,16 +117,17 @@ async def create_user(
     display_name: str = "テストユーザー",
     is_demo: bool = False,
 ) -> User:
-    """``users`` を直接作る。CLI（§9-0）はテストでは使わない（design.md §13）。"""
-    user = User(
+    """``users`` を直接作る。CLI（§9-0）はテストでは使わない（design.md §13）。
+
+    Repository 経由にするのは、email の正規化がそこにあるため（本番の書き込み経路と
+    同じ通り道を使う）。
+    """
+    return await UserRepository(db_session).create(
         email=email,
         password_hash=hash_password(PASSWORD),
         display_name=display_name,
         is_demo=is_demo,
     )
-    db_session.add(user)
-    await db_session.flush()
-    return user
 
 
 async def login(client: AsyncClient, email: str) -> AsyncClient:

@@ -8,6 +8,7 @@
 import hashlib
 import secrets
 
+import anyio
 import anyio.to_thread
 from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHashError, VerificationError, VerifyMismatchError
@@ -36,14 +37,23 @@ def verify_password(hashed: str, password: str) -> bool:
 # Argon2id は1回あたり数十 ms・64 MiB を使う。イベントループ上で直接回すと、
 # ログインが数件重なるだけで他のリクエスト（/health や読み取り）まで待たされる。
 # async のコードからはこの2つを使い、ワーカースレッドへ逃がす。
+#
+# ただし anyio の既定スレッドプール（40）に素で流すと、未認証で叩ける
+# POST /auth/login が 40 並列 × 64 MiB ≒ 2.5 GiB を確保しうる。専用の
+# CapacityLimiter で同時実行数を絞り、FastAPI が同期処理に使う既定プールとも
+# 取り合わないようにする。
+_PASSWORD_HASH_CONCURRENCY = 4
+_password_limiter = anyio.CapacityLimiter(_PASSWORD_HASH_CONCURRENCY)
 
 
 async def hash_password_async(password: str) -> str:
-    return await anyio.to_thread.run_sync(hash_password, password)
+    return await anyio.to_thread.run_sync(hash_password, password, limiter=_password_limiter)
 
 
 async def verify_password_async(hashed: str, password: str) -> bool:
-    return await anyio.to_thread.run_sync(verify_password, hashed, password)
+    return await anyio.to_thread.run_sync(
+        verify_password, hashed, password, limiter=_password_limiter
+    )
 
 
 def generate_token() -> str:

@@ -6,8 +6,10 @@
 薄いラッパーに過ぎない。
 """
 
+import asyncio
+
 import pytest
-from app.cli import CommandError, _resolve_password
+from app.cli import CommandError, _create_user, _resolve_password
 
 
 def test_generates_and_reports_a_generated_password(monkeypatch):
@@ -52,3 +54,32 @@ def test_refuses_to_prompt_without_a_tty(monkeypatch):
 
     with pytest.raises(CommandError, match="--generate-password"):
         _resolve_password(generate=False)
+
+
+def test_rejects_an_overlong_display_name() -> None:
+    # varchar(100) 超過を DataError のトレースバックではなく CommandError にする。
+    with pytest.raises(CommandError, match="display-name"):
+        asyncio.run(
+            _create_user(
+                None,  # type: ignore[arg-type]  # 長さ検証は session に触れる前に走る
+                email="x@example.com",
+                display_name="あ" * 101,
+                is_demo=False,
+                password="pw",
+                was_generated=False,
+            )
+        )
+
+
+def test_rejects_an_overlong_email() -> None:
+    with pytest.raises(CommandError, match="email"):
+        asyncio.run(
+            _create_user(
+                None,  # type: ignore[arg-type]
+                email="a" * 311 + "@example.com",
+                display_name="名前",
+                is_demo=False,
+                password="pw",
+                was_generated=False,
+            )
+        )

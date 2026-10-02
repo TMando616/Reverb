@@ -34,7 +34,7 @@ from app.core.authorization import Actor, Role
 from app.core.db import async_session, engine
 from app.core.exceptions import AppError
 from app.core.security import hash_password
-from app.modules.auth.repository import UserRepository
+from app.modules.auth.repository import UserRepository, normalize_email
 from app.modules.projects.repository import (
     InvitationRepository,
     ProjectMemberRepository,
@@ -52,35 +52,52 @@ class CommandError(Exception):
     """
 
 
+# users テーブルの桁（models.py）。超過を DataError のトレースバックではなく
+# CommandError として返すために、ここでも持っておく。
+EMAIL_MAX_LENGTH = 320
+DISPLAY_NAME_MAX_LENGTH = 100
+
+
 async def _create_user(
     session: AsyncSession,
     *,
     email: str,
     display_name: str,
     is_demo: bool,
-    generate: bool,
-) -> None:
+    password: str,
+    was_generated: bool,
+) -> list[str]:
     """ログイン可能なユーザーを作成する。bootstrap の owner も demo アカウントも
     ここから作る（design.md §9-0）。
+
+    パスワードは呼び出し側で解決済みのものを受け取る（トランザクションを開いた
+    まま入力待ちにしないため）。出力は戻り値で返し、commit 後に表示する。
     """
+    if len(email) > EMAIL_MAX_LENGTH:
+        raise CommandError(f"email must be at most {EMAIL_MAX_LENGTH} characters")
+    if len(display_name) > DISPLAY_NAME_MAX_LENGTH:
+        raise CommandError(f"display-name must be at most {DISPLAY_NAME_MAX_LENGTH} characters")
+
     users = UserRepository(session)
     if await users.get_by_email(email) is not None:
         raise CommandError(f"a user already exists for {email}")
 
-    password, was_generated = _resolve_password(generate)
     user = await users.create(
         email=email,
         password_hash=hash_password(password),
         display_name=display_name,
         is_demo=is_demo,
     )
-    print(f"created user #{user.id}  {email}  demo={is_demo}")
+    lines = [f"created user #{user.id}  {normalize_email(email)}  demo={is_demo}"]
     if was_generated:
         # 1回だけ表示し、平文で保存はしない。再表示は不可能。
-        print(f"password: {password}")
+        lines.append(f"password: {password}")
+    return lines
 
 
-async def _add_member(session: AsyncSession, *, project_id: int, user_id: int, role: Role) -> None:
+async def _add_member(
+    session: AsyncSession, *, project_id: int, user_id: int, role: Role
+) -> list[str]:
     """招待を経由せず、メンバーシップを直接付与する。
 
     招待受諾の運用側の対応版：受諾は書き込みで demo アカウントは読み取り専用
@@ -105,10 +122,10 @@ async def _add_member(session: AsyncSession, *, project_id: int, user_id: int, r
         )
 
     await members.add(project_id=project_id, user_id=user_id, role=role)
-    print(f"added user #{user_id} to project #{project_id} as {role.value}")
+    return [f"added user #{user_id} to project #{project_id} as {role.value}"]
 
 
-async def _accept_invitation(session: AsyncSession, *, token: str, email: str) -> None:
+async def _accept_invitation(session: AsyncSession, *, token: str, email: str) -> list[str]:
     """既存ユーザーとして、ターミナルから招待を受諾する。
 
     受諾時の新規登録はブラウザの役割（design.md §9-1）なので、ここではアカウントが
@@ -131,7 +148,7 @@ async def _accept_invitation(session: AsyncSession, *, token: str, email: str) -
         display_name=None,
         password=None,
     )
-    print(f"user #{user.id} joined project #{result.project_id} as {result.role.value}")
+    return [f"user #{user.id} joined project #{result.project_id} as {result.role.value}"]
 
 
 def _resolve_password(generate: bool) -> tuple[str, bool]:
@@ -180,33 +197,46 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-async def _dispatch(session: AsyncSession, args: argparse.Namespace) -> None:
+async def _dispatch(
+    session: AsyncSession, args: argparse.Namespace, password: tuple[str, bool] | None
+) -> list[str]:
     if args.command == "create-user":
-        await _create_user(
+        assert password is not None  # main() が解決済み
+        secret, was_generated = password
+        return await _create_user(
             session,
             email=args.email,
             display_name=args.display_name,
             is_demo=args.demo,
-            generate=args.generate_password,
+            password=secret,
+            was_generated=was_generated,
         )
-    elif args.command == "add-member":
-        await _add_member(session, project_id=args.project, user_id=args.user, role=Role(args.role))
-    elif args.command == "accept-invitation":
-        await _accept_invitation(session, token=args.token, email=args.email)
+    if args.command == "add-member":
+        return await _add_member(
+            session, project_id=args.project, user_id=args.user, role=Role(args.role)
+        )
+    if args.command == "accept-invitation":
+        return await _accept_invitation(session, token=args.token, email=args.email)
+    return []
 
 
-async def _run(args: argparse.Namespace) -> None:
+async def _run(args: argparse.Namespace, password: tuple[str, bool] | None) -> None:
     """1コマンド＝1セッション＝1トランザクション。``get_session`` と同じ形にする
     （design.md §4-4）。Service は flush だけ行い、唯一の ``commit()`` はここにある。
+
+    出力は commit の後に出す。先に出すと、commit が失敗したときに「作成した」と
+    表示した行が存在しない、という食い違いが起きる。
     """
     try:
         async with async_session() as session:
             try:
-                await _dispatch(session, args)
+                lines = await _dispatch(session, args, password)
                 await session.commit()
             except Exception:
                 await session.rollback()
                 raise
+        for line in lines:
+            print(line)
     finally:
         await engine.dispose()
 
@@ -214,7 +244,12 @@ async def _run(args: argparse.Namespace) -> None:
 def main() -> None:
     args = _build_parser().parse_args()
     try:
-        asyncio.run(_run(args))
+        # パスワードの入力待ちは DB セッションを開く前に済ませる。トランザクションを
+        # 開いたまま待つと idle in transaction のタイムアウトで接続が切られる。
+        password = (
+            _resolve_password(args.generate_password) if args.command == "create-user" else None
+        )
+        asyncio.run(_run(args, password))
     except (CommandError, AppError) as exc:
         # 操作者側のミスとドメイン上の拒否（demo アカウントの受諾試行など）は
         # メッセージとして扱い、トレースバックにはしない。

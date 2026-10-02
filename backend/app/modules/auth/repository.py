@@ -14,6 +14,17 @@ from sqlalchemy.orm import selectinload
 from app.modules.auth.models import Session, User
 
 
+def normalize_email(email: str) -> str:
+    """保存・検索で使う形に揃える。
+
+    揃えないと ``Owner@example.com`` で作ったアカウントに ``owner@example.com``
+    でログインできず（原因も分からず）、重複チェックもすり抜けて同じ人の行が
+    2つできる。読み書きの両方がこの関数を通るので、``users.email`` の UNIQUE
+    制約がそのまま大文字小文字を区別しない一意性になる。
+    """
+    return email.strip().lower()
+
+
 class UserRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
@@ -22,14 +33,16 @@ class UserRepository:
         return await self._session.get(User, user_id)
 
     async def get_by_email(self, email: str) -> User | None:
-        result = await self._session.execute(select(User).where(User.email == email))
+        result = await self._session.execute(
+            select(User).where(User.email == normalize_email(email))
+        )
         return result.scalar_one_or_none()
 
     async def create(
         self, *, email: str, password_hash: str, display_name: str, is_demo: bool = False
     ) -> User:
         user = User(
-            email=email,
+            email=normalize_email(email),
             password_hash=password_hash,
             display_name=display_name,
             is_demo=is_demo,
