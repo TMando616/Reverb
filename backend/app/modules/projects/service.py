@@ -18,7 +18,7 @@ from app.core.authorization import (
     require_not_demo,
 )
 from app.core.exceptions import AuthenticationError, ForbiddenError, NotFoundError
-from app.core.security import generate_token, hash_password, hash_token
+from app.core.security import generate_token, hash_password_async, hash_token
 from app.modules.auth.repository import UserRepository
 from app.modules.projects.models import Invitation, Project, ProjectMember
 from app.modules.projects.repository import (
@@ -251,7 +251,7 @@ class InvitationService:
             raise AuthenticationError("an account already exists for this email; sign in first")
         user = await self._users.create(
             email=invitation.email,
-            password_hash=hash_password(password),
+            password_hash=await hash_password_async(password),
             display_name=display_name,
         )
         return user.id

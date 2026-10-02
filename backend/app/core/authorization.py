@@ -6,11 +6,14 @@
 ``MemberRoleReader`` を経由して届く（design.md §5-2）。
 """
 
+import logging
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import Protocol
 
 from app.core.exceptions import ForbiddenError, NotFoundError
+
+logger = logging.getLogger("app.authorization")
 
 
 @dataclass(frozen=True, slots=True)
@@ -75,7 +78,20 @@ class ProjectAuthorizer:
         if actor.is_demo:
             allowed = allowed & VIEW_ONLY
         if perm not in allowed:
-            raise ForbiddenError(perm)
+            # 権限名（content:write 等）は内部語彙なのでクライアントには出さず、
+            # ログ側に残す。文面は ForbiddenError の既定を使う。
+            logger.info(
+                "permission denied: user=%s project=%s perm=%s role=%s demo=%s",
+                actor.user_id,
+                project_id,
+                perm,
+                role,
+                actor.is_demo,
+            )
+            raise ForbiddenError()
+        # demo のときも絞る前の role を返す（実効権限は VIEW_ONLY との積集合）。
+        # 画面がこの role から操作可否を決めると、押しても 403 になるボタンを
+        # demo に見せることになるので、UI は role ではなく API の応答で判断する。
         return role
 
 

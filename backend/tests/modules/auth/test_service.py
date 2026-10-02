@@ -35,11 +35,11 @@ async def test_login_with_unknown_email_still_verifies_a_dummy_hash(
     # 同じ Argon2 コストを払わなければならない。
     calls: list[str] = []
 
-    def spy(hashed: str, password: str) -> bool:
+    async def spy(hashed: str, password: str) -> bool:
         calls.append(hashed)
         return verify_password(hashed, password)
 
-    monkeypatch.setattr(service_module, "verify_password", spy)
+    monkeypatch.setattr(service_module, "verify_password_async", spy)
     svc = _service(FakeUserRepository([]), FakeSessionRepository())
 
     with pytest.raises(AuthenticationError):

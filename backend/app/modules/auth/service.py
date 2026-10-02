@@ -12,7 +12,7 @@ from app.core.security import (
     DUMMY_PASSWORD_HASH,
     generate_token,
     hash_token,
-    verify_password,
+    verify_password_async,
 )
 from app.modules.auth.models import User
 from app.modules.auth.repository import SessionRepository, UserRepository
@@ -39,15 +39,15 @@ class AuthService:
     async def login(self, email: str, password: str) -> LoginResult:
         """資格情報を検証してセッションを開く。失敗時は ``AuthenticationError``。
 
-        email が未登録でも、固定のダミーハッシュに対して ``verify_password`` を
+        email が未登録でも、固定のダミーハッシュに対して ``verify_password_async`` を
         1回走らせる。これによりレスポンス時間からアドレスの登録有無が漏れない
         （design.md §4-2）。
         """
         user = await self._users.get_by_email(email)
         if user is None:
-            verify_password(DUMMY_PASSWORD_HASH, password)
+            await verify_password_async(DUMMY_PASSWORD_HASH, password)
             raise AuthenticationError("invalid email or password")
-        if not verify_password(user.password_hash, password):
+        if not await verify_password_async(user.password_hash, password):
             raise AuthenticationError("invalid email or password")
 
         token = generate_token()

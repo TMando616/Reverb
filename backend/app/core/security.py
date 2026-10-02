@@ -8,6 +8,7 @@
 import hashlib
 import secrets
 
+import anyio.to_thread
 from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHashError, VerificationError, VerifyMismatchError
 
@@ -20,16 +21,29 @@ DUMMY_PASSWORD_HASH: str = _hasher.hash("reverb-nonexistent-account")
 
 
 def hash_password(password: str) -> str:
-    """``password`` の Argon2id ハッシュを返す。"""
+    """``password`` の Argon2id ハッシュを返す（同期・CPU バウンド）。"""
     return _hasher.hash(password)
 
 
 def verify_password(hashed: str, password: str) -> bool:
-    """``password`` が ``hashed`` と一致するかを返す。例外は投げない。"""
+    """``password`` が ``hashed`` と一致するかを返す（同期）。例外は投げない。"""
     try:
         return _hasher.verify(hashed, password)
     except (VerifyMismatchError, VerificationError, InvalidHashError):
         return False
+
+
+# Argon2id は1回あたり数十 ms・64 MiB を使う。イベントループ上で直接回すと、
+# ログインが数件重なるだけで他のリクエスト（/health や読み取り）まで待たされる。
+# async のコードからはこの2つを使い、ワーカースレッドへ逃がす。
+
+
+async def hash_password_async(password: str) -> str:
+    return await anyio.to_thread.run_sync(hash_password, password)
+
+
+async def verify_password_async(hashed: str, password: str) -> bool:
+    return await anyio.to_thread.run_sync(verify_password, hashed, password)
 
 
 def generate_token() -> str:

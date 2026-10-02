@@ -10,6 +10,7 @@ from typing import Any
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.core.exceptions import AppError
 
@@ -24,8 +25,29 @@ def register_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(AppError)
     async def _handle_app_error(_request: Request, exc: AppError) -> JSONResponse:
         if exc.status >= 500:
+            # 5xx のメッセージは内部事情（SQL・例外文）を含みうるので外に出さない。
+            # 情報はログ側に残す。
             logger.error("unexpected app error: %s", exc, exc_info=exc)
+            return JSONResponse(
+                status_code=exc.status,
+                content=_envelope(exc.code, "internal server error"),
+            )
         return JSONResponse(status_code=exc.status, content=_envelope(exc.code, exc.message))
+
+    @app.exception_handler(StarletteHTTPException)
+    async def _handle_http_exception(
+        _request: Request, exc: StarletteHTTPException
+    ) -> JSONResponse:
+        # 未知パス（404）やメソッド不一致（405）は FastAPI 既定の {"detail": ...} で
+        # 返るため、ここで封筒を揃える。揃えないと BFF がこれを「予期しないエラー」に
+        # 丸めてしまう（frontend/lib/api/server.ts）。
+        code = "not_found" if exc.status_code == 404 else "http_error"
+        message = exc.detail if isinstance(exc.detail, str) else "request failed"
+        return JSONResponse(
+            status_code=exc.status_code,
+            content=_envelope(code, message),
+            headers=getattr(exc, "headers", None),
+        )
 
     @app.exception_handler(RequestValidationError)
     async def _handle_validation_error(
@@ -40,8 +62,10 @@ def register_exception_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(Exception)
     async def _handle_unexpected(_request: Request, exc: Exception) -> JSONResponse:
-        # 最後の受け皿。Service が正常に戻った後の commit 失敗もここに現れる
-        # （design.md §4-4）— 必ずログに残し、黒く握り潰さない。
+        # 最後の受け皿。ハンドラ実行中の想定外はここで 500 になる。
+        # なお dependency の commit（design.md §4-4）はレスポンス送信後に走るため、
+        # そこで失敗した場合はここを通ってもステータスを変えられない。**ログだけが
+        # 手がかりになる**ので、握り潰さずに残す。
         logger.error("unhandled exception", exc_info=exc)
         return JSONResponse(
             status_code=500,

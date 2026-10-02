@@ -1,7 +1,9 @@
 """非同期エンジンとセッションファクトリ。
 
-ここから import できるのは ``repository.py`` / ``models.py`` / ``deps.py`` /
-``cli.py`` / ``migrations/`` のみ（design.md §2-2、.importlinter で強制）。
+ここから import してよいのは ``repository.py`` / ``models.py`` / ``deps.py`` /
+``cli.py`` / ``migrations/`` のみ（design.md §2-2）。``.importlinter`` が機械的に
+禁じているのは Service からの import だけで、**router / schemas から
+``async_session`` を掴む経路は契約で止まらない**。ここは規約として守る。
 """
 
 from collections.abc import AsyncIterator
@@ -17,7 +19,13 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from app.core.config import get_settings
 
-engine = create_async_engine(get_settings().database_url, future=True)
+engine = create_async_engine(
+    get_settings().database_url,
+    future=True,
+    # アイドルで切れた接続・フェイルオーバー後の死んだ接続をリクエストに渡さない。
+    # 入れていないと、最初のステートメントが 500 になる状態がプールの入れ替わりまで続く。
+    pool_pre_ping=True,
+)
 async_session = async_sessionmaker(engine, expire_on_commit=False)
 
 
@@ -28,8 +36,12 @@ class Base(DeclarativeBase):
 class TimestampMixin:
     """``created_at`` / ``updated_at`` を DB 側で埋める（design.md §3-1）。
 
-    タイムスタンプは ``timestamptz``。サーバークロックが責務を持つので、
-    アプリ外（CLI・マイグレーション）から書いた行でも値の一貫性が保たれる。
+    タイムスタンプは ``timestamptz``。``created_at`` はサーバークロックが責務を持つ
+    ので、アプリ外（CLI・マイグレーション）から入れた行でも埋まる。
+
+    一方 ``updated_at`` の更新は ORM の ``onupdate`` だけが担っている（DB トリガーは
+    無い）。psql や ``op.execute("UPDATE ...")`` で直接書くと古い値が残る。
+    履歴の正しさが要るようになったらトリガーを足す。
     """
 
     created_at: Mapped[datetime] = mapped_column(
