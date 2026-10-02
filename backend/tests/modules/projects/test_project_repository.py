@@ -1,0 +1,118 @@
+"""``ProjectRepository`` / ``ProjectMemberRepository`` のユニットテスト（design.md §13）。
+
+Service のテストは fake を使うので、ここが実 SQL（join・ON CONFLICT・FOR UPDATE）を
+確かめる唯一の場所になる。
+"""
+
+import pytest
+from app.core.authorization import Role
+from app.modules.auth.models import User
+from app.modules.projects.repository import ProjectMemberRepository, ProjectRepository
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from tests.conftest import create_user
+
+
+@pytest.fixture
+async def users(db_session: AsyncSession) -> tuple[User, User]:
+    owner = await create_user(db_session, "owner@example.com", display_name="オーナー")
+    other = await create_user(db_session, "other@example.com", display_name="ほか")
+    return owner, other
+
+
+async def test_list_for_user_returns_only_projects_you_belong_to(
+    db_session: AsyncSession, users: tuple[User, User]
+) -> None:
+    owner, other = users
+    projects = ProjectRepository(db_session)
+    members = ProjectMemberRepository(db_session)
+
+    mine = await projects.create(name="自分の企画", created_by=owner.id)
+    theirs = await projects.create(name="他人の企画", created_by=other.id)
+    await members.add(project_id=mine.id, user_id=owner.id, role=Role.OWNER)
+    await members.add(project_id=theirs.id, user_id=other.id, role=Role.OWNER)
+
+    rows = await projects.list_for_user(owner.id)
+
+    assert [(project.id, role) for project, role in rows] == [(mine.id, Role.OWNER)]
+
+
+async def test_add_does_not_overwrite_an_existing_role(
+    db_session: AsyncSession, users: tuple[User, User]
+) -> None:
+    # ON CONFLICT DO NOTHING（design.md §9-2）。招待の受諾で黙って降格させない。
+    owner, other = users
+    project = await ProjectRepository(db_session).create(name="企画", created_by=owner.id)
+    members = ProjectMemberRepository(db_session)
+
+    await members.add(project_id=project.id, user_id=other.id, role=Role.EDITOR)
+    await members.add(project_id=project.id, user_id=other.id, role=Role.REVIEWER)
+
+    assert await members.role_of(other.id, project.id) == Role.EDITOR
+
+
+async def test_role_of_is_scoped_to_the_project(
+    db_session: AsyncSession, users: tuple[User, User]
+) -> None:
+    owner, other = users
+    projects = ProjectRepository(db_session)
+    members = ProjectMemberRepository(db_session)
+    joined = await projects.create(name="参加している", created_by=owner.id)
+    separate = await projects.create(name="参加していない", created_by=owner.id)
+    await members.add(project_id=joined.id, user_id=other.id, role=Role.REVIEWER)
+
+    assert await members.role_of(other.id, joined.id) == Role.REVIEWER
+    assert await members.role_of(other.id, separate.id) is None
+
+
+async def test_lock_and_count_owners_counts_only_owners_of_that_project(
+    db_session: AsyncSession, users: tuple[User, User]
+) -> None:
+    owner, other = users
+    projects = ProjectRepository(db_session)
+    members = ProjectMemberRepository(db_session)
+    project = await projects.create(name="企画", created_by=owner.id)
+    elsewhere = await projects.create(name="別企画", created_by=owner.id)
+    await members.add(project_id=project.id, user_id=owner.id, role=Role.OWNER)
+    await members.add(project_id=project.id, user_id=other.id, role=Role.EDITOR)
+    await members.add(project_id=elsewhere.id, user_id=other.id, role=Role.OWNER)
+
+    assert await members.lock_and_count_owners(project.id) == 1
+
+
+async def test_list_members_joins_the_user_row(
+    db_session: AsyncSession, users: tuple[User, User]
+) -> None:
+    owner, other = users
+    project = await ProjectRepository(db_session).create(name="企画", created_by=owner.id)
+    members = ProjectMemberRepository(db_session)
+    await members.add(project_id=project.id, user_id=owner.id, role=Role.OWNER)
+    await members.add(project_id=project.id, user_id=other.id, role=Role.REVIEWER)
+
+    rows = await members.list_members(project.id)
+
+    assert [(member.user_id, user.display_name) for member, user in rows] == [
+        (owner.id, "オーナー"),
+        (other.id, "ほか"),
+    ]
+
+
+async def test_update_role_and_remove_are_scoped(
+    db_session: AsyncSession, users: tuple[User, User]
+) -> None:
+    owner, other = users
+    projects = ProjectRepository(db_session)
+    members = ProjectMemberRepository(db_session)
+    project = await projects.create(name="企画", created_by=owner.id)
+    elsewhere = await projects.create(name="別企画", created_by=owner.id)
+    await members.add(project_id=project.id, user_id=other.id, role=Role.EDITOR)
+    await members.add(project_id=elsewhere.id, user_id=other.id, role=Role.EDITOR)
+
+    await members.update_role(project.id, other.id, Role.REVIEWER)
+    assert await members.role_of(other.id, project.id) == Role.REVIEWER
+    # 同じ user_id の別企画の行は巻き込まれない。
+    assert await members.role_of(other.id, elsewhere.id) == Role.EDITOR
+
+    await members.remove(project.id, other.id)
+    assert await members.role_of(other.id, project.id) is None
+    assert await members.role_of(other.id, elsewhere.id) == Role.EDITOR

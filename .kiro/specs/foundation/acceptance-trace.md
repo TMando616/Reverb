@@ -113,7 +113,7 @@
 | 条件 | 判定 | 根拠 |
 |---|---|---|
 | Service 層のユニットテストがある | ✅ | `tests/modules/**`（計70件超） |
-| **Repository 層のユニットテストがある（企画スコープでの絞り込み）** | ❌ | **無い。** 企画スコープと論理削除の除外は、fake か API 結合テスト経由でしか確かめていない。`design.md` §13 が独立したユニットテストとして挙げている分が抜けている |
+| **Repository 層のユニットテストがある（企画スコープでの絞り込み）** | ✅ | `tests/modules/contents/test_content_repository.py`（企画スコープ・論理削除の除外・並び順・遷移ログ）、`tests/modules/projects/test_project_repository.py`（list_for_user・ON CONFLICT DO NOTHING・role_of のスコープ・owner の数え上げ・update / remove のスコープ）。いずれも実 DB に対して実行する |
 | API の結合テストがある（主経路と 401 / 403 / 409 / 422） | ✅ | `tests/api/test_main_path.py`、`tests/api/test_error_statuses.py` |
 | OpenAPI が自動生成され参照できる | ✅ | `tests/test_health.py::test_openapi_is_generated`、`tests/api/test_openapi.py` |
 | `ruff` / `mypy` / `lint-imports` が CI で緑 | ✅ | `.github/workflows/ci.yml` |
@@ -124,13 +124,13 @@
 
 | 判定 | 件数 |
 |---|---|
-| ✅ 対応テストあり | 53 |
+| ✅ 対応テストあり | 54 |
 | 🔶 実装では満たすがテストが無い | 9 |
-| ❌ 満たしていない | 1 |
+| ❌ 満たしていない | 0 |
 
 ### 埋めるべき穴（優先度順）
 
-1. **Repository 層のユニットテスト**（F9・❌）。`ContentRepository.get` / `list` が実 DB で企画スコープと `deleted_at` を効かせていることを直接確かめる。いまは fake が同じ振る舞いを真似ているだけなので、**本物の SQL が間違っていてもユニットテストは緑**になる
+1. ~~Repository 層のユニットテスト~~（2026-09-28 対応済み）。スコープを外すとテストが落ちることも確認した
 2. **demo による招待発行が 403**（F3）。`VIEW_ONLY` の積集合で弾かれる経路の確認
 3. **CLI 経路で認可が働くこと**（F5）。`add-member` が Service を通ることの確認
 4. **空 title が 422**（F6）。スキーマのバリデーションが効いていること
