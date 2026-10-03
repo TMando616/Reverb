@@ -519,8 +519,18 @@ Alembic のデータマイグレーションにしない理由：**環境ごと�
    - 未ログイン かつ 未登録：リクエストに `display_name` / `password` を含めさせ、`users` を作成
    - 既ログイン：その `Actor` を使う（**demo なら 403**・§5-3）
 3. サーバー：`token_hash` で招待を引き、`accepted_at IS NULL AND expires_at > now()` を確認（満たさなければ **404**・§6-3）
-   → `project_members` に追加 → `invitations.accepted_at` / `accepted_user_id` を更新
+   → **`accepted_at` を `WHERE accepted_at IS NULL` 付きで先に打つ**（更新できなければ 404）→ `project_members` に追加
 4. `expires_at` は発行から 7 日
+
+**受諾を先に押さえるのは、同じリンクを2人が同時に開いたときのため。** READ COMMITTED では
+両方が「未受諾」を読みうるので、更新の成否で1回きりを決める。負けた方は 404 になる。
+
+#### M0 で持たないもの（意図的な割り切り）
+
+- **発行済み招待の一覧・失効の API を持たない。** 発行者が降格・除名されても、渡したリンクは
+  `expires_at`（7日）まで有効なまま。M0 の画面（§12-2）に招待管理が無いため、ここは許容する
+- 取り消しが必要になったら、`GET/DELETE /projects/{id}/invitations` を足すか、受諾時に
+  `created_by` の現在のロールを再確認する形にする。**どちらも後続スペックで扱う**
 
 ### 9-2. 既にメンバーだった場合（F2「重複メンバーシップを作らない」）
 
