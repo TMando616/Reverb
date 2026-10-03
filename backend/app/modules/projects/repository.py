@@ -8,8 +8,9 @@ getter は ``project_id`` を受け取ってそれで絞り込むので、企画
 
 from collections.abc import Sequence
 from datetime import datetime
+from typing import Any, cast
 
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import CursorResult, delete, func, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -175,11 +176,19 @@ class InvitationRepository:
         )
         return result.scalar_one_or_none()
 
-    async def mark_accepted(self, invitation_id: int, *, accepted_user_id: int) -> None:
-        """``accepted_at``（サーバークロック）を打ち、誰が受諾したかを記録する。"""
-        await self._session.execute(
+    async def mark_accepted(self, invitation_id: int, *, accepted_user_id: int) -> bool:
+        """``accepted_at``（サーバークロック）を打ち、誰が受諾したかを記録する。
+
+        ``accepted_at IS NULL`` を条件に入れているので、**受諾は1回しか成功しない**。
+        同じリンクを2人が同時に開くと、READ COMMITTED では両方が「未受諾」を読む
+        ことがあり、条件を付けないと後勝ちで ``accepted_user_id`` が上書きされる。
+        更新できたかどうかを返し、呼び出し元が 404 に倒す。
+        """
+        result = await self._session.execute(
             update(Invitation)
-            .where(Invitation.id == invitation_id)
+            .where(Invitation.id == invitation_id, Invitation.accepted_at.is_(None))
             .values(accepted_at=func.now(), accepted_user_id=accepted_user_id)
         )
         await self._session.flush()
+        # execute の戻りは Result 型だが、UPDATE では CursorResult で rowcount を持つ。
+        return cast("CursorResult[Any]", result).rowcount == 1

@@ -98,7 +98,8 @@ class MemberView:
 
     user_id: int
     display_name: str
-    email: str
+    # メンバー管理の権限が無い相手（reviewer・demo など）には返さない。
+    email: str | None
     role: Role
     joined_at: datetime
 
@@ -125,8 +126,9 @@ class MemberService:
         invitation = await self._invitations.create(
             project_id=project_id,
             # users と同じ形に揃えておく。受諾時の突き合わせ（下の get_by_email）が
-            # 大文字小文字で食い違わないようにするため。
-            email=normalize_email(email) if email is not None else None,
+            # 大文字小文字で食い違わないようにするため。空白だけの入力は「宛先なし」
+            # として None に倒す（"" のまま通すと email="" のユーザーができる）。
+            email=(normalize_email(email) or None) if email is not None else None,
             role=role,
             token_hash=hash_token(token),
             expires_at=datetime.now(UTC) + INVITATION_TTL,
@@ -135,13 +137,22 @@ class MemberService:
         return InvitationCreated(invitation=invitation, accept_path=f"/invite/{token}")
 
     async def list_members(self, actor: Actor, project_id: int) -> Sequence[MemberView]:
+        """メンバー一覧。**email はメンバー管理の権限を持つ人にだけ返す。**
+
+        demo アカウントは公開 URL で共有される想定（design.md §5-2）なので、
+        閲覧できるだけの相手に実在のメールアドレスを配ると、共有した瞬間に
+        メンバー全員のアドレスが外へ出る。表示名とロールは一覧に必要なので残す。
+        """
         await self._authz.require(actor, project_id, Permission.PROJECT_VIEW)
+        may_see_email = await self._authz.allows(
+            actor, project_id, Permission.PROJECT_MANAGE_MEMBERS
+        )
         rows = await self._members.list_members(project_id)
         return [
             MemberView(
                 user_id=member.user_id,
                 display_name=user.display_name,
-                email=user.email,
+                email=user.email if may_see_email else None,
                 role=Role(member.role),
                 joined_at=member.created_at,
             )
@@ -229,12 +240,17 @@ class InvitationService:
         else:
             user_id = await self._register_acceptor(invitation, display_name, password)
 
+        # 先に「受諾済み」を立てる。同じリンクを同時に開いた2人目はここで負け、
+        # メンバーシップを作る前に 404 になる（招待は1回だけ使える）。
+        claimed = await self._invitations.mark_accepted(invitation.id, accepted_user_id=user_id)
+        if not claimed:
+            raise NotFoundError("invitation")
+
         await self._members.add(
             project_id=invitation.project_id,
             user_id=user_id,
             role=Role(invitation.role),
         )
-        await self._invitations.mark_accepted(invitation.id, accepted_user_id=user_id)
 
         effective_role = await self._members.role_of(user_id, invitation.project_id)
         assert effective_role is not None  # 直前でメンバーシップを保証済み

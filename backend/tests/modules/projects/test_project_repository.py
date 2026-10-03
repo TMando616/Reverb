@@ -4,10 +4,16 @@ Service のテストは fake を使うので、ここが実 SQL（join・ON CONF
 確かめる唯一の場所になる。
 """
 
+from datetime import UTC, datetime, timedelta
+
 import pytest
 from app.core.authorization import Role
 from app.modules.auth.models import User
-from app.modules.projects.repository import ProjectMemberRepository, ProjectRepository
+from app.modules.projects.repository import (
+    InvitationRepository,
+    ProjectMemberRepository,
+    ProjectRepository,
+)
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from tests.conftest import create_user
@@ -116,3 +122,29 @@ async def test_update_role_and_remove_are_scoped(
     await members.remove(project.id, other.id)
     assert await members.role_of(other.id, project.id) is None
     assert await members.role_of(other.id, elsewhere.id) == Role.EDITOR
+
+
+async def test_mark_accepted_succeeds_only_once(
+    db_session: AsyncSession, users: tuple[User, User]
+) -> None:
+    """招待は1回だけ使える。同じリンクを2人が同時に開いても2人目は負ける。"""
+    owner, other = users
+    project = await ProjectRepository(db_session).create(name="企画", created_by=owner.id)
+    invitations = InvitationRepository(db_session)
+    invitation = await invitations.create(
+        project_id=project.id,
+        email=None,
+        role=Role.EDITOR,
+        token_hash="a" * 64,
+        expires_at=datetime.now(UTC) + timedelta(days=7),
+        created_by=owner.id,
+    )
+
+    first = await invitations.mark_accepted(invitation.id, accepted_user_id=owner.id)
+    second = await invitations.mark_accepted(invitation.id, accepted_user_id=other.id)
+
+    assert (first, second) == (True, False)
+    # 受諾者は先に成功した方のまま（後勝ちで上書きされない）。UPDATE は SQL で
+    # 走らせているので、手元のインスタンスを読み直してから確かめる。
+    await db_session.refresh(invitation)
+    assert invitation.accepted_user_id == owner.id

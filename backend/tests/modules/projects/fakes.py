@@ -144,10 +144,14 @@ class FakeInvitationRepository:
                 return invitation
         return None
 
-    async def mark_accepted(self, invitation_id: int, *, accepted_user_id: int) -> None:
+    async def mark_accepted(self, invitation_id: int, *, accepted_user_id: int) -> bool:
+        # 本物と同じく「未受諾のときだけ成功する」。受諾は1回きり（design.md §9-1）。
         invitation = self._by_id[invitation_id]
+        if invitation.accepted_at is not None:
+            return False
         invitation.accepted_at = datetime.now(UTC)
         invitation.accepted_user_id = accepted_user_id
+        return True
 
     def seed(self, invitation: Invitation) -> None:
         self._seq = max(self._seq, invitation.id)

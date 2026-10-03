@@ -94,6 +94,20 @@ class ProjectAuthorizer:
         # demo に見せることになるので、UI は role ではなく API の応答で判断する。
         return role
 
+    async def allows(self, actor: Actor, project_id: int, perm: Permission) -> bool:
+        """``perm`` を持つかどうかだけを返す（例外は投げない）。
+
+        「権限があれば余分な項目も返す」ような**出し分け**に使う。アクセスの可否
+        そのものは ``require`` で弾くこと。こちらを門番に使わない。
+        """
+        role = await self._members.role_of(actor.user_id, project_id)
+        if role is None:
+            return False
+        allowed = ROLE_PERMISSIONS[role]
+        if actor.is_demo:
+            allowed = allowed & VIEW_ONLY
+        return perm in allowed
+
 
 def require_not_demo(actor: Actor) -> None:
     """``project_id`` がまだ存在しない操作を守るガード（design.md §5-3）。

@@ -49,3 +49,44 @@ async def test_logout_is_idempotent_and_does_not_401(
 
 async def test_logout_without_a_token_is_still_401(client: AsyncClient) -> None:
     assert (await client.post("/auth/logout")).status_code == 401
+
+
+async def test_member_emails_are_hidden_from_non_managers(
+    owner_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """demo は公開 URL で共有される想定なので、メンバーのアドレスを配らない。"""
+    project_id = (await owner_client.post("/projects", json={"name": "企画"})).json()["id"]
+    reviewer = await create_user(db_session, "reviewer@example.com", display_name="レビュアー")
+    invitation = await owner_client.post(
+        f"/projects/{project_id}/invitations",
+        json={"role": "reviewer", "email": reviewer.email},
+    )
+    token = invitation.json()["accept_path"].rsplit("/", 1)[-1]
+
+    # owner には見える。
+    as_owner = await owner_client.get(f"/projects/{project_id}/members")
+    assert all(row["email"] for row in as_owner.json())
+
+    # reviewer として受諾して読むと、アドレスは落ちている。
+    await login(owner_client, reviewer.email)
+    await owner_client.post(f"/invitations/{token}/accept", json={})
+    as_reviewer = await owner_client.get(f"/projects/{project_id}/members")
+
+    assert as_reviewer.status_code == 200
+    assert [row["email"] for row in as_reviewer.json()] == [None, None]
+    # 表示名とロールは一覧に必要なので残す。
+    assert all(row["display_name"] for row in as_reviewer.json())
+
+
+async def test_blank_invitation_email_is_treated_as_no_recipient(
+    owner_client: AsyncClient,
+) -> None:
+    project_id = (await owner_client.post("/projects", json={"name": "企画"})).json()["id"]
+
+    created = await owner_client.post(
+        f"/projects/{project_id}/invitations", json={"role": "editor", "email": "   "}
+    )
+
+    assert created.status_code == 201
+    # "" のまま通すと email="" のユーザーが作られてしまう。
+    assert created.json()["email"] is None

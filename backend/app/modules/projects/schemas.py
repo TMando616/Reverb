@@ -45,7 +45,8 @@ class MemberOut(BaseModel):
 
     user_id: int
     display_name: str
-    email: str
+    # メンバー管理の権限を持つ相手にだけ入る（reviewer・demo には null）。
+    email: str | None
     role: Role
     joined_at: datetime
 

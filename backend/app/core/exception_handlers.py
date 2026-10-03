@@ -10,6 +10,7 @@ from typing import Any
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from sqlalchemy.exc import IntegrityError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.core.exceptions import AppError
@@ -58,6 +59,17 @@ def register_exception_handlers(app: FastAPI) -> None:
         return JSONResponse(
             status_code=422,
             content=_envelope("validation_error", "request validation failed"),
+        )
+
+    @app.exception_handler(IntegrityError)
+    async def _handle_integrity_error(_request: Request, exc: IntegrityError) -> JSONResponse:
+        # UNIQUE / FK 違反。「先に存在を確認してから挿入する」形のコードは、確認と
+        # 挿入の間に別のリクエストが入ると必ずここへ来る。500 ではなく 409 が実態に近い
+        # （どの制約に当たったかは内部情報なので出さない）。
+        logger.warning("integrity error", exc_info=exc)
+        return JSONResponse(
+            status_code=409,
+            content=_envelope("conflict", "resource already exists or violates a constraint"),
         )
 
     @app.exception_handler(Exception)
