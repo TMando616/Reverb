@@ -75,6 +75,12 @@ class ContentStatusTransition(Base):
     """
 
     __tablename__ = "content_status_transitions"
+    __table_args__ = (
+        # 「1コンテンツの履歴」を引く経路（後続スペック）と、contents 側の
+        # ON DELETE CASCADE のため。FK の参照側に索引が無いと、親の削除が
+        # このテーブルの全走査になる。
+        Index("ix_content_status_transitions_content_id", "content_id"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     content_id: Mapped[int] = mapped_column(

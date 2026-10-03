@@ -35,6 +35,9 @@ export type Content = {
   updated_at: string;
 };
 
+/** 一覧の行。API は本文を返さない（body_md は単体取得で引く）。 */
+export type ContentSummary = Omit<Content, "body_md">;
+
 export type Me = {
   id: number;
   email: string;

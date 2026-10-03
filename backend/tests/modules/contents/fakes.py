@@ -3,8 +3,9 @@
 ``FakeContentRepository`` は、Service が依存している ``version_id_col`` の
 挙動を1つだけ模している：``flush`` は追跡対象のフィールドが実際に変わった
 ときだけ ``version`` を進める。本物の ``StaleDataError`` → 409 のマッピングは
-2つの実トランザクションを要するので、ここでは ``lose_next_race`` で模擬し、
-本物は tasks.md §7 の API 結合テストに委ねる。
+2つの実トランザクションを要するので、ここでは ``lose_next_race`` で模擬する。
+本物の経路は ``tests/modules/contents/test_optimistic_lock_race.py`` が
+実 DB に接続2本を張って確認している。
 """
 
 from collections.abc import Sequence

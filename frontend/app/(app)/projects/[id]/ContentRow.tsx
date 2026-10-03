@@ -2,14 +2,14 @@
 
 import { useActionState } from "react";
 
-import { ALLOWED_TRANSITIONS, STATUS_LABELS, type Content } from "@/lib/api/types";
+import { ALLOWED_TRANSITIONS, STATUS_LABELS, type ContentSummary } from "@/lib/api/types";
 
 import type { ContentFormState } from "./actions";
 
 const initialState: ContentFormState = { message: "" };
 
 type Props = {
-  content: Content;
+  content: ContentSummary;
   action: (prev: ContentFormState, formData: FormData) => Promise<ContentFormState>;
 };
 

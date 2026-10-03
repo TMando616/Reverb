@@ -20,7 +20,7 @@ router = APIRouter(prefix="/projects/{project_id}/contents", tags=["contents"])
 ContentServiceDep = Annotated[ContentService, Depends(get_content_service)]
 
 
-@router.get("", response_model=list[schemas.ContentOut])
+@router.get("", response_model=list[schemas.ContentListItem])
 async def list_contents(
     project_id: int,
     actor: CurrentActor,
@@ -28,9 +28,9 @@ async def list_contents(
     # 絞り込みは単一 status のみ。タグ・キーワードは content-pipeline の範疇
     # （design.md §6-1）。
     status: ContentStatus | None = None,
-) -> list[schemas.ContentOut]:
+) -> list[schemas.ContentListItem]:
     rows = await service.list(actor, project_id, status=status)
-    return [schemas.ContentOut.model_validate(row) for row in rows]
+    return [schemas.ContentListItem.model_validate(row) for row in rows]
 
 
 @router.post("", response_model=schemas.ContentOut, status_code=status.HTTP_201_CREATED)

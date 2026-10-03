@@ -4,8 +4,8 @@ import { notFound, redirect } from "next/navigation";
 import { apiFetch } from "@/lib/api/server";
 import {
   STATUS_LABELS,
-  type Content,
   type ContentStatus,
+  type ContentSummary,
   type Project,
 } from "@/lib/api/types";
 
@@ -32,7 +32,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
 
   const [project, contents] = await Promise.all([
     apiFetch<Project>(`/projects/${projectId}`),
-    apiFetch<Content[]>(`/projects/${projectId}/contents`),
+    apiFetch<ContentSummary[]>(`/projects/${projectId}/contents`),
   ]);
 
   for (const result of [project, contents]) {

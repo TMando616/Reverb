@@ -7,13 +7,28 @@ id と区別できない（design.md §5-2、F5）。論理削除済みの行は
 """
 
 from collections.abc import Sequence
+from datetime import UTC, datetime
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.exc import StaleDataError
 
 from app.core.exceptions import VersionConflictError
 from app.modules.contents.models import Content, ContentStatus, ContentStatusTransition
+
+
+async def _flush_mapping_conflicts(session: AsyncSession) -> None:
+    """flush し、楽観ロックの競合負けを 409 にマッピングする。
+
+    ``version_id_col`` により、読み込み後に別トランザクションが version を進めて
+    いた場合、この UPDATE は0行にマッチする。SQLAlchemy はこれを ``StaleDataError``
+    として報告するので、ここで変換する（Service は ``sqlalchemy`` を import できない
+    ため。design.md §3-3、.importlinter）。
+    """
+    try:
+        await session.flush()
+    except StaleDataError as exc:
+        raise VersionConflictError() from exc
 
 
 class ContentRepository:
@@ -55,23 +70,15 @@ class ContentRepository:
         return result.scalars().all()
 
     async def soft_delete(self, content: Content) -> None:
-        # created_at / updated_at と同じくサーバークロックを使う。ORM を経由させる
-        # ことで、この UPDATE にも version チェックが伴うようにする。
-        content.deleted_at = func.now()
+        # ORM を経由させることで、この UPDATE にも version チェックが伴う。
+        # func.now() のような SQL 式を代入すると、flush 後もその属性は expired の
+        # ままになり、次に読んだ側（ログ・レスポンス）で MissingGreenlet になる。
+        content.deleted_at = datetime.now(UTC)
         await self.flush()
 
     async def flush(self) -> None:
-        """保留中の変更を flush し、楽観ロックの競合負けを 409 にマッピングする。
-
-        ``version_id_col`` により、読み込み後に別トランザクションが version を
-        進めていた場合、この UPDATE は0行にマッチする。SQLAlchemy はこれを
-        ``StaleDataError`` として報告するので、ここで変換する（Service は
-        ``sqlalchemy`` を import できないため。design.md §3-3、.importlinter）。
-        """
-        try:
-            await self._session.flush()
-        except StaleDataError as exc:
-            raise VersionConflictError() from exc
+        """保留中の変更を flush する（競合は 409 になる）。"""
+        await _flush_mapping_conflicts(self._session)
 
 
 class ContentTransitionRepository:
@@ -95,5 +102,8 @@ class ContentTransitionRepository:
             actor_user_id=actor_user_id,
         )
         self._session.add(row)
-        await self._session.flush()
+        # 素の flush ではなく共通のラッパを通す。flush はセッション全体を書き出すので、
+        # ここで他の dirty な行が楽観ロックに負けると StaleDataError が生で上がり、
+        # 409 ではなく 500 になる。
+        await _flush_mapping_conflicts(self._session)
         return row
