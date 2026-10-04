@@ -11,7 +11,20 @@ import { apiFetch } from "@/lib/api/server";
 /** `/api/projects/1/contents` → `/projects/1/contents` の対応で中継する。 */
 export async function passthrough(request: Request, segments: string[]): Promise<Response> {
   const url = new URL(request.url);
-  const path = `/${segments.join("/")}${url.search}`;
+
+  // Next.js はキャッチオールのセグメントを「/ で分割したあとに」デコードする。
+  // つまり %2f や %2e%2e はここへ来た時点で本物の区切り・ドットセグメントになって
+  // いて、そのまま連結すると fetch の URL 解決で /projects の外（/auth/login や
+  // /openapi.json）へ届く。**BFF が中継する範囲を守るのはここだけ**なので、
+  // セグメントは「不透明な1語」として扱い、はみ出す形は 404 にする。
+  if (segments.some((segment) => segment === "." || segment === ".." || /[/\\]/.test(segment))) {
+    return Response.json(
+      { error: { code: "not_found", message: "not found" } },
+      { status: 404 },
+    );
+  }
+  // 受け取った時点でデコード済みなので、ここで1回だけ encode する（二重にならない）。
+  const path = `/${segments.map(encodeURIComponent).join("/")}${url.search}`;
   const method = request.method;
   const text = method === "GET" || method === "DELETE" ? "" : await request.text();
   // 空ボディに Content-Type: application/json を付けて送ると FastAPI 側で無関係な

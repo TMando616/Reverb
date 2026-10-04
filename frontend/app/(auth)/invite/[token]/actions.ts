@@ -21,10 +21,12 @@ export async function acceptInvitation(
   // （design.md §9-1）。どちらを送るかは API の契約に合わせるだけで、判断はしない。
   const body = loggedIn ? {} : { display_name: displayName, password };
 
-  const result = await apiFetch<InvitationAccepted>(`/invitations/${token}/accept`, {
-    method: "POST",
-    body: JSON.stringify(body),
-  });
+  // token は URL のセグメントとしてデコード済みで届く。そのまま埋めると
+  // ..%2f や %3f で上流のパスを差し替えられる（passthrough.ts の同じ話）。
+  const result = await apiFetch<InvitationAccepted>(
+    `/invitations/${encodeURIComponent(token)}/accept`,
+    { method: "POST", body: JSON.stringify(body) },
+  );
 
   if (!result.ok) {
     if (result.status === 401) {
