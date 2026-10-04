@@ -100,3 +100,30 @@ async def test_integrity_error_becomes_409() -> None:
     assert response.json()["error"]["code"] == "conflict"
     # 制約名のような内部情報は出さない。
     assert "users_email_key" not in response.text
+
+
+def test_docs_are_closed_in_production(monkeypatch: pytest.MonkeyPatch) -> None:
+    """本番では OpenAPI と docs を出さない。ブラウザは BFF 経由でしか届かない
+    （ADR-0014）ので、内部 API の形を外に置く理由が無い。
+    """
+    from app.core import config
+    from app.main import create_app
+
+    monkeypatch.setattr(
+        config,
+        "get_settings",
+        lambda: config.Settings(environment="production", secret_key="x" * 32),
+    )
+    monkeypatch.setattr("app.main.get_settings", config.get_settings)
+
+    app = create_app()
+
+    assert (app.openapi_url, app.docs_url, app.redoc_url) == (None, None, None)
+
+
+def test_docs_are_open_outside_production() -> None:
+    from app.main import create_app
+
+    app = create_app()
+
+    assert app.openapi_url == "/openapi.json"

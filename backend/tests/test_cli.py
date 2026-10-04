@@ -23,15 +23,15 @@ def test_generates_and_reports_a_generated_password(monkeypatch):
 
 def test_prompts_twice_and_returns_the_typed_password(monkeypatch):
     monkeypatch.setattr("sys.stdin.isatty", lambda: True)
-    monkeypatch.setattr("getpass.getpass", lambda prompt: "s3cret-pass")
+    monkeypatch.setattr("getpass.getpass", lambda prompt: "s3cret-pass-long-enough")
 
     password, was_generated = _resolve_password(generate=False)
 
-    assert (password, was_generated) == ("s3cret-pass", False)
+    assert (password, was_generated) == ("s3cret-pass-long-enough", False)
 
 
 def test_rejects_mismatched_confirmation(monkeypatch):
-    answers = iter(["first-pass", "second-pass"])
+    answers = iter(["first-pass-long-enough", "second-pass-long-enough"])
     monkeypatch.setattr("sys.stdin.isatty", lambda: True)
     monkeypatch.setattr("getpass.getpass", lambda prompt: next(answers))
 
@@ -39,11 +39,14 @@ def test_rejects_mismatched_confirmation(monkeypatch):
         _resolve_password(generate=False)
 
 
-def test_rejects_an_empty_password(monkeypatch):
+@pytest.mark.parametrize("typed", ["", "short"], ids=["empty", "too-short"])
+def test_rejects_a_password_below_the_minimum(monkeypatch, typed):
+    # 招待受諾（API）と同じ下限をここでも課す。CLI だけ緩いと、bootstrap で
+    # 作った owner が一番弱いアカウントになる。
     monkeypatch.setattr("sys.stdin.isatty", lambda: True)
-    monkeypatch.setattr("getpass.getpass", lambda prompt: "")
+    monkeypatch.setattr("getpass.getpass", lambda prompt: typed)
 
-    with pytest.raises(CommandError, match="must not be empty"):
+    with pytest.raises(CommandError, match="at least"):
         _resolve_password(generate=False)
 
 

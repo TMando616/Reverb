@@ -15,6 +15,10 @@ from argon2.exceptions import InvalidHashError, VerificationError, VerifyMismatc
 
 _hasher = PasswordHasher()
 
+# 自己サービスで作れる唯一の経路（招待受諾）と CLI で共有する下限。
+# Argon2id を入れても、1文字のパスワードを許したら意味が薄くなる。
+MIN_PASSWORD_LENGTH = 12
+
 # email が未登録のときに検証する固定の Argon2id ハッシュ。これにより、
 # ログインはどちらの分岐でも同じ CPU コストを払い、タイミングでアドレスの
 # 登録有無が漏れない（design.md §4-2）。import 時に一度だけ計算する。

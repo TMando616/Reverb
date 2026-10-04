@@ -33,7 +33,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.authorization import Actor, Role
 from app.core.db import async_session, engine
 from app.core.exceptions import AppError
-from app.core.security import hash_password
+from app.core.security import MIN_PASSWORD_LENGTH, hash_password
 from app.modules.auth.repository import UserRepository, normalize_email
 from app.modules.projects.repository import (
     InvitationRepository,
@@ -162,8 +162,8 @@ def _resolve_password(generate: bool) -> tuple[str, bool]:
     if not sys.stdin.isatty():
         raise CommandError("no tty for the password prompt; pass --generate-password")
     password = getpass.getpass("password: ")
-    if not password:
-        raise CommandError("password must not be empty")
+    if len(password) < MIN_PASSWORD_LENGTH:
+        raise CommandError(f"password must be at least {MIN_PASSWORD_LENGTH} characters")
     if password != getpass.getpass("password (again): "):
         raise CommandError("passwords did not match")
     return password, False

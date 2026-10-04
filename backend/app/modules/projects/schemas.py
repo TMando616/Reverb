@@ -9,6 +9,7 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.core.authorization import Role
+from app.core.security import MIN_PASSWORD_LENGTH
 
 
 class ProjectCreateRequest(BaseModel):
@@ -65,7 +66,7 @@ class MemberRoleOut(BaseModel):
 class InvitationAcceptRequest(BaseModel):
     # 未ログイン経路でのみ必須。その強制は service 側が行う（design.md §9-1）。
     display_name: str | None = Field(default=None, min_length=1, max_length=100)
-    password: str | None = Field(default=None, min_length=1)
+    password: str | None = Field(default=None, min_length=MIN_PASSWORD_LENGTH)
 
 
 class InvitationAcceptOut(BaseModel):

@@ -126,3 +126,25 @@ async def test_a_live_session_still_passes(client: AsyncClient, db_session: Asyn
     response = await client.get("/auth/me", headers={"Authorization": f"Bearer {token}"})
 
     assert response.status_code == 200
+
+
+async def test_accepting_an_invitation_rejects_a_weak_password(
+    owner_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """自己サービスで作れる唯一の経路なので、ここに下限を置く。"""
+    project_id = (await owner_client.post("/projects", json={"name": "企画"})).json()["id"]
+    invitation = await owner_client.post(
+        f"/projects/{project_id}/invitations",
+        json={"role": "editor", "email": "newcomer@example.com"},
+    )
+    token = invitation.json()["accept_path"].rsplit("/", 1)[-1]
+
+    # 未ログインの受諾（新規登録を伴う経路）なので、ヘッダーを落としてから送る。
+    del owner_client.headers["Authorization"]
+    weak = await owner_client.post(
+        f"/invitations/{token}/accept",
+        json={"display_name": "新人", "password": "short"},
+    )
+
+    assert weak.status_code == 422
+    assert weak.json()["error"]["code"] == "validation_error"
