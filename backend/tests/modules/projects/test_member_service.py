@@ -97,3 +97,11 @@ async def test_list_members_returns_a_view_per_row() -> None:
 
     assert {(v.user_id, v.role) for v in views} == {(1, Role.OWNER), (2, Role.EDITOR)}
     assert all(v.email and v.display_name for v in views)
+
+
+async def test_demo_cannot_invite() -> None:
+    """demo は role が owner でも VIEW_ONLY との積集合で弾かれる（design.md §5-2）。"""
+    svc = _service(_members((10, 9, Role.OWNER)))
+
+    with pytest.raises(ForbiddenError):
+        await svc.invite(Actor(user_id=9, is_demo=True), 10, role=Role.EDITOR, email=None)

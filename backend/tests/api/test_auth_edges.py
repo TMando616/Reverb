@@ -148,3 +148,27 @@ async def test_accepting_an_invitation_rejects_a_weak_password(
 
     assert weak.status_code == 422
     assert weak.json()["error"]["code"] == "validation_error"
+
+
+async def test_a_demo_account_can_log_in_and_read(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """デモは読み取り専用だが、ログイン自体は通る（F3）。"""
+    demo = await create_user(db_session, "demo2@example.com", display_name="デモ", is_demo=True)
+
+    authed = await login(client, demo.email)
+    me = await authed.get("/auth/me")
+
+    assert me.status_code == 200
+    assert me.json()["is_demo"] is True
+
+
+async def test_empty_title_is_422(owner_client: AsyncClient) -> None:
+    project_id = (await owner_client.post("/projects", json={"name": "企画"})).json()["id"]
+
+    response = await owner_client.post(
+        f"/projects/{project_id}/contents", json={"title": "", "body_md": ""}
+    )
+
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "validation_error"

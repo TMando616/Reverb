@@ -46,12 +46,13 @@
 
 | 条件 | 判定 | 根拠 |
 |---|---|---|
-| デモアカウントでログインできる | 🔶 | `is_demo` の払い出しは `app/cli.py` の `--demo`。**demo でログインして 200 になる経路のテストが無い**（`tests/api/test_error_statuses.py::test_403_when_a_demo_account_creates_a_project` はログイン自体は通っているので実質は担保） |
+| デモアカウントでログインできる | ✅ | `tests/api/test_auth_edges.py::test_a_demo_account_can_log_in_and_read`（ログインして `/auth/me` が 200・`is_demo` が真） |
 | 参加している企画とコンテンツを閲覧できる | ✅ | `tests/modules/projects/test_project_service.py::test_demo_member_may_still_read_a_project`、`tests/modules/contents/test_content_service.py::test_reviewer_and_demo_can_read` |
 | 作成・更新・削除・遷移・招待は 403 | ✅ | `tests/modules/contents/test_content_service.py::test_reviewer_and_demo_cannot_write`、`tests/modules/contents/test_content_transition.py::test_reviewer_and_demo_cannot_transition`、`tests/modules/projects/test_project_service.py::test_demo_cannot_create_a_project`、`tests/modules/projects/test_invitation_service.py::test_logged_in_demo_cannot_accept` |
 | demo であることが認可判定の中で識別できる | ✅ | `tests/core/test_authorization.py::test_demo_is_clamped_to_view_only_intersection` / `test_require_not_demo_blocks_demo` |
 
-**穴**: demo による**招待の発行**（`invite`）が 403 になることのテストが無い。`require_not_demo` ではなく `VIEW_ONLY` の積集合で弾かれる経路なので、確認しておきたい。
+demo による**招待の発行**（`VIEW_ONLY` の積集合で弾かれる経路）も
+`tests/modules/projects/test_member_service.py::test_demo_cannot_invite` で確認済み。
 
 ## F4. 企画とメンバー
 
@@ -68,7 +69,7 @@
 |---|---|---|
 | 権限マトリクスに反する操作は Service で拒否される | ✅ | `tests/core/test_authorization.py` 一式＋各 Service のテスト |
 | 認可判定は Controller ではなく Service に置かれる | 🔶 | `.importlinter` の契約と構造で担保。**「router に認可判定が無い」ことを検証するテストは無い** |
-| HTTP 以外（MCP / ジョブ）から呼んでも同一の認可が通る | 🔶 | Service が `Actor` を引数で受け取る形なので構造的には満たす。`app/cli.py` が Service 経由であることも該当するが、**CLI 経路で認可が働くテストは無い**（`tests/test_cli.py` はパスワード入力の検証のみ） |
+| HTTP 以外（MCP / ジョブ）から呼んでも同一の認可が通る | ✅ | `tests/test_cli_authorization.py`（いま存在する唯一の非 HTTP 経路である CLI で、demo の受諾が 403 になり、通常ユーザーは成功する） |
 | 認可拒否は 403、認証切れは 401 と区別される | ✅ | `tests/api/test_error_statuses.py` の 401 / 403 各テスト |
 | 他企画の content_id 指定などの横断アクセスが拒否される | ✅ | `tests/modules/contents/test_content_service.py::test_content_of_another_project_is_404_even_for_a_member_of_both`、`tests/modules/contents/test_content_transition.py::test_content_of_another_project_is_404` |
 | 判定単位が企画＋コンテンツの両方で機能する | ✅ | 上の2件＋`test_non_member_gets_404_not_403` |
@@ -77,7 +78,7 @@
 
 | 条件 | 判定 | 根拠 |
 |---|---|---|
-| owner / editor が作成できる（title 必須、初期 status は inbox） | ✅ | `tests/modules/contents/test_content_service.py::test_editor_creates_content_in_inbox_at_version_1`（title 必須は `schemas.ContentCreateRequest` の `min_length=1`。**空 title が 422 になるテストは無い** 🔶） |
+| owner / editor が作成できる（title 必須、初期 status は inbox） | ✅ | `tests/modules/contents/test_content_service.py::test_editor_creates_content_in_inbox_at_version_1`、`tests/api/test_auth_edges.py::test_empty_title_is_422` |
 | コンテンツは必ずいずれかの企画に属する | 🔶 | `contents.project_id` が NOT NULL + FK。**制約違反を確かめるテストは無い**（API 経路上、企画を経由しないと作れない） |
 | メンバーは一覧・取得できる | ✅ | `tests/modules/contents/test_content_service.py::test_reviewer_and_demo_can_read` / `test_list_filters_by_a_single_status` |
 | owner / editor は title / body_md を更新できる | ✅ | `test_update_bumps_version_and_keeps_omitted_fields` |
@@ -125,13 +126,26 @@
 | 判定 | 件数 |
 |---|---|
 | ✅ 対応テストあり | 54 |
-| 🔶 実装では満たすがテストが無い | 9 |
+| 🔶 実装では満たすがテストが無い | 2 |
 | ❌ 満たしていない | 0 |
 
-### 埋めるべき穴（優先度順）
+（2026-09-28 再集計。コードレビューとセキュリティレビューの対応で、テストが 107 → 148 件に増えた分を反映）
 
-1. ~~Repository 層のユニットテスト~~（2026-09-28 対応済み）。スコープを外すとテストが落ちることも確認した
-2. **demo による招待発行が 403**（F3）。`VIEW_ONLY` の積集合で弾かれる経路の確認
-3. **CLI 経路で認可が働くこと**（F5）。`add-member` が Service を通ることの確認
-4. **空 title が 422**（F6）。スキーマのバリデーションが効いていること
-5. 残りの 🔶（router に認可判定が無いこと、`project_id` の NOT NULL 制約）は、テストを足すより**レビューと契約で見るほうが素直**。ここはテストにしない判断もあり得る
+### 残る 🔶 2件（テストにしない判断）
+
+- **認可判定が Controller ではなく Service にある**（F5）。`.importlinter` の
+  `service-no-fastapi` 契約と構造で担保する。「router に認可判定が無い」ことを
+  テストで示すのは、書けても壊れやすい
+- **コンテンツが必ず企画に属する**（F6）。`contents.project_id` の NOT NULL + FK が
+  本体で、API 経路上は企画を経由しないと作れない。制約違反を起こすテストは
+  DB の機能を確かめるだけになる
+
+どちらも「テストが無い」ではなく**仕組みで守っている**もの。レビューで見る。
+
+### 対応済みの穴（2026-09-28）
+
+1. Repository 層のユニットテスト（F9）。スコープを外すと落ちることも確認
+2. demo による招待発行が 403（F3）
+3. CLI 経路で認可が働くこと（F5）
+4. 空 title が 422（F6）
+5. 招待の検索条件・セッションの有効期限・email 正規化の読み取り側（ミューテーションで確認）
