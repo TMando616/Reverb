@@ -156,3 +156,21 @@ async def test_anonymous_acceptance_when_email_already_registered_is_rejected() 
 
     with pytest.raises(AuthenticationError):
         await svc.accept(None, TOKEN, display_name="X", password="pw12345")
+
+
+async def test_losing_the_claim_race_is_404_and_adds_no_membership() -> None:
+    """同じリンクを2人が同時に開いたとき、受諾を取れなかった側は 404。
+
+    先に ``accepted_at`` を打ってからメンバーシップを作るので、負けた側は
+    メンバーにならない（design.md §9-1）。
+    """
+    invitations = FakeInvitationRepository()
+    invitations.seed(_pending())
+    members = FakeProjectMemberRepository()
+    svc = _service(invitations, members)
+    invitations.lose_next_claim()
+
+    with pytest.raises(NotFoundError):
+        await svc.accept(Actor(user_id=7, is_demo=False), TOKEN, display_name=None, password=None)
+
+    assert await members.role_of(7, 10) is None

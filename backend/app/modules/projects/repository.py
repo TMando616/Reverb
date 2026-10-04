@@ -77,7 +77,9 @@ class ProjectMemberRepository:
             select(ProjectMember, User)
             .join(User, User.id == ProjectMember.user_id)
             .where(ProjectMember.project_id == project_id)
-            .order_by(ProjectMember.created_at)
+            # created_at はトランザクション時刻なので、同じトランザクションで
+            # 入れた行は同値になる。id をタイブレークにしないと順序が未定義。
+            .order_by(ProjectMember.created_at, ProjectMember.id)
         )
         return [(member, user) for member, user in result.all()]
 

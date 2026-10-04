@@ -148,3 +148,68 @@ async def test_mark_accepted_succeeds_only_once(
     # 走らせているので、手元のインスタンスを読み直してから確かめる。
     await db_session.refresh(invitation)
     assert invitation.accepted_user_id == owner.id
+
+
+@pytest.fixture
+async def pending_invitation(
+    db_session: AsyncSession, users: tuple[User, User]
+) -> tuple[InvitationRepository, int, str]:
+    owner, _ = users
+    project = await ProjectRepository(db_session).create(name="企画", created_by=owner.id)
+    invitations = InvitationRepository(db_session)
+    invitation = await invitations.create(
+        project_id=project.id,
+        email=None,
+        role=Role.EDITOR,
+        token_hash="b" * 64,
+        expires_at=datetime.now(UTC) + timedelta(days=7),
+        created_by=owner.id,
+    )
+    return invitations, invitation.id, invitation.token_hash
+
+
+async def test_find_valid_by_token_hash_returns_a_pending_invitation(
+    pending_invitation: tuple[InvitationRepository, int, str],
+) -> None:
+    invitations, invitation_id, token_hash = pending_invitation
+
+    found = await invitations.find_valid_by_token_hash(token_hash)
+
+    assert found is not None and found.id == invitation_id
+
+
+async def test_find_valid_by_token_hash_hides_an_accepted_invitation(
+    pending_invitation: tuple[InvitationRepository, int, str], users: tuple[User, User]
+) -> None:
+    # 受諾済みは「無い」。呼び出し元が 404 に倒す（design.md §6-3）。
+    invitations, invitation_id, token_hash = pending_invitation
+    owner, _ = users
+    await invitations.mark_accepted(invitation_id, accepted_user_id=owner.id)
+
+    assert await invitations.find_valid_by_token_hash(token_hash) is None
+
+
+async def test_find_valid_by_token_hash_hides_an_expired_invitation(
+    db_session: AsyncSession, users: tuple[User, User]
+) -> None:
+    owner, _ = users
+    project = await ProjectRepository(db_session).create(name="企画", created_by=owner.id)
+    invitations = InvitationRepository(db_session)
+    await invitations.create(
+        project_id=project.id,
+        email=None,
+        role=Role.EDITOR,
+        token_hash="c" * 64,
+        expires_at=datetime.now(UTC) - timedelta(seconds=1),
+        created_by=owner.id,
+    )
+
+    assert await invitations.find_valid_by_token_hash("c" * 64) is None
+
+
+async def test_find_valid_by_token_hash_is_unknown_for_a_wrong_token(
+    pending_invitation: tuple[InvitationRepository, int, str],
+) -> None:
+    invitations, _, _ = pending_invitation
+
+    assert await invitations.find_valid_by_token_hash("d" * 64) is None

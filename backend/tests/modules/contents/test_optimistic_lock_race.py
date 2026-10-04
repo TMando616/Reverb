@@ -29,34 +29,37 @@ from tests.conftest import PASSWORD, TEST_DATABASE_URL
 @pytest.fixture
 async def seeded() -> AsyncIterator[tuple[async_sessionmaker[AsyncSession], int, int, int]]:
     """コミット済みの user / project / content を1組用意し、終わったら消す。"""
+    # engine の生成も try の内側に置く。シードで落ちたときに dispose と行の
+    # 後片付けを飛ばすと、次回の実行が UNIQUE 違反で始まる。
     engine = create_async_engine(TEST_DATABASE_URL, poolclass=NullPool)
     sessionmaker = async_sessionmaker(engine, expire_on_commit=False)
-
-    async with sessionmaker() as session:
-        user = await UserRepository(session).create(
-            email="race@example.com",
-            password_hash=hash_password(PASSWORD),
-            display_name="競合",
-        )
-        project = await ProjectRepository(session).create(name="競合の企画", created_by=user.id)
-        content = await ContentRepository(session).create(
-            project_id=project.id,
-            title="元のタイトル",
-            body_md="",
-            status=ContentStatus.INBOX,
-            created_by=user.id,
-        )
-        await session.commit()
-        ids = (project.id, content.id, user.id)
-
+    ids: tuple[int, int, int] | None = None
     try:
+        async with sessionmaker() as session:
+            user = await UserRepository(session).create(
+                email="race@example.com",
+                password_hash=hash_password(PASSWORD),
+                display_name="競合",
+            )
+            project = await ProjectRepository(session).create(name="競合の企画", created_by=user.id)
+            content = await ContentRepository(session).create(
+                project_id=project.id,
+                title="元のタイトル",
+                body_md="",
+                status=ContentStatus.INBOX,
+                created_by=user.id,
+            )
+            await session.commit()
+            ids = (project.id, content.id, user.id)
+
         yield sessionmaker, *ids
     finally:
-        async with sessionmaker() as cleanup:
-            await cleanup.execute(delete(Content).where(Content.id == ids[1]))
-            await cleanup.execute(delete(Project).where(Project.id == ids[0]))
-            await cleanup.execute(delete(User).where(User.id == ids[2]))
-            await cleanup.commit()
+        if ids is not None:
+            async with sessionmaker() as cleanup:
+                await cleanup.execute(delete(Content).where(Content.id == ids[1]))
+                await cleanup.execute(delete(Project).where(Project.id == ids[0]))
+                await cleanup.execute(delete(User).where(User.id == ids[2]))
+                await cleanup.commit()
         await engine.dispose()
 
 

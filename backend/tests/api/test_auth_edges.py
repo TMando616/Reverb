@@ -4,6 +4,10 @@
 「大文字小文字を区別しない一意性」を作っているので、fake では確かめられない。
 """
 
+from datetime import UTC, datetime, timedelta
+
+from app.core.security import generate_token, hash_token
+from app.modules.auth.repository import SessionRepository
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,10 +19,11 @@ async def test_login_is_case_insensitive_for_the_email(
 ) -> None:
     # CLI で大文字混じりのアドレスを登録した人が、小文字で打ってログインできないと
     # 原因の分からない締め出しになる。
-    await create_user(db_session, "Owner@Example.com")
+    await create_user(db_session, "owner@example.com")
 
+    # 読み取り側（get_by_email）の正規化を通す：保存は小文字、送るのは大文字混じり。
     response = await client.post(
-        "/auth/login", json={"email": "owner@example.com", "password": PASSWORD}
+        "/auth/login", json={"email": "  Owner@Example.COM ", "password": PASSWORD}
     )
 
     assert response.status_code == 200, response.text
@@ -90,3 +95,34 @@ async def test_blank_invitation_email_is_treated_as_no_recipient(
     assert created.status_code == 201
     # "" のまま通すと email="" のユーザーが作られてしまう。
     assert created.json()["email"] is None
+
+
+async def test_an_expired_session_is_401(client: AsyncClient, db_session: AsyncSession) -> None:
+    """SESSION_TTL が効いていることを直接押さえる（失効 revoked_at とは別経路）。"""
+    user = await create_user(db_session, "expired@example.com")
+    token = generate_token()
+    await SessionRepository(db_session).create(
+        user_id=user.id,
+        token_hash=hash_token(token),
+        expires_at=datetime.now(UTC) - timedelta(seconds=1),
+    )
+
+    response = await client.get("/auth/me", headers={"Authorization": f"Bearer {token}"})
+
+    assert response.status_code == 401
+    assert response.json()["error"]["code"] == "authentication_error"
+
+
+async def test_a_live_session_still_passes(client: AsyncClient, db_session: AsyncSession) -> None:
+    # 上のテストが「常に 401」で通ってしまわないための対（期限内なら通る）。
+    user = await create_user(db_session, "live@example.com")
+    token = generate_token()
+    await SessionRepository(db_session).create(
+        user_id=user.id,
+        token_hash=hash_token(token),
+        expires_at=datetime.now(UTC) + timedelta(minutes=1),
+    )
+
+    response = await client.get("/auth/me", headers={"Authorization": f"Bearer {token}"})
+
+    assert response.status_code == 200

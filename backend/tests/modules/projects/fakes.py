@@ -144,8 +144,20 @@ class FakeInvitationRepository:
                 return invitation
         return None
 
+    def lose_next_claim(self) -> None:
+        """次の ``mark_accepted`` を「他の誰かに先を越された」状態にする。
+
+        本物は ``UPDATE ... WHERE accepted_at IS NULL`` の0行で負けるが、fake は
+        1プロセス内なので同時受諾を再現できない。service 側の分岐（負けたら 404）
+        を踏ませるための口。
+        """
+        self._lose_next_claim = True
+
     async def mark_accepted(self, invitation_id: int, *, accepted_user_id: int) -> bool:
         # 本物と同じく「未受諾のときだけ成功する」。受諾は1回きり（design.md §9-1）。
+        if getattr(self, "_lose_next_claim", False):
+            self._lose_next_claim = False
+            return False
         invitation = self._by_id[invitation_id]
         if invitation.accepted_at is not None:
             return False
