@@ -6,7 +6,13 @@ from app.core.exceptions import ForbiddenError, NotFoundError, VersionConflictEr
 from app.modules.contents.models import Content, ContentStatus
 from app.modules.contents.service import ContentService
 
-from tests.modules.contents.fakes import FakeContentRepository, FakeContentTransitionRepository
+from tests.modules.contents.fakes import (
+    FakeContentRepository,
+    FakeContentTagRepository,
+    FakeContentTransitionRepository,
+    FakeRevisionRepository,
+    FakeTagRepository,
+)
 from tests.modules.projects.fakes import FakeProjectMemberRepository
 
 PROJECT = 10
@@ -35,6 +41,9 @@ def _setup() -> tuple[ContentService, FakeContentRepository]:
         contents,  # type: ignore[arg-type]
         ProjectAuthorizer(members),
         FakeContentTransitionRepository(),  # type: ignore[arg-type]
+        FakeTagRepository(),  # type: ignore[arg-type]
+        FakeContentTagRepository(),  # type: ignore[arg-type]
+        FakeRevisionRepository(),  # type: ignore[arg-type]
     )
     return service, contents
 
@@ -171,9 +180,9 @@ async def test_list_filters_by_a_single_status() -> None:
     adopted = await _seed(service)
     adopted.status = ContentStatus.ADOPTED.value
 
-    assert [c.id for c in await service.list(OWNER, PROJECT, status=ContentStatus.INBOX)] == [
+    assert [c.id for c in await service.list(OWNER, PROJECT, statuses=[ContentStatus.INBOX])] == [
         inbox.id
     ]
-    assert [c.id for c in await service.list(OWNER, PROJECT, status=ContentStatus.ADOPTED)] == [
+    assert [c.id for c in await service.list(OWNER, PROJECT, statuses=[ContentStatus.ADOPTED])] == [
         adopted.id
     ]

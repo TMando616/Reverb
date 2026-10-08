@@ -65,3 +65,29 @@ class InvalidStateTransitionError(AppError):
 
     def __init__(self, message: str = "invalid state transition") -> None:
         super().__init__(message)
+
+
+class TagNameConflictError(AppError):
+    """同じ企画に、正規化後に同じ名前のタグがある（content-pipeline design.md §6-4）。
+
+    409 が ``version_conflict`` と2種類になるので、クライアントは ``code`` で区別する。
+    """
+
+    status = 409
+    code = "tag_name_conflict"
+
+    def __init__(self, message: str = "a tag with the same name already exists") -> None:
+        super().__init__(message)
+
+
+class InvalidTagError(AppError):
+    """付けようとしたタグがこの企画に無い、または上限を超える（content-pipeline design.md §6-4）。
+
+    他企画のタグと存在しないタグを区別しない（他企画のタグの存在を漏らさない）。
+    """
+
+    status = 422
+    code = "invalid_tag"
+
+    def __init__(self, message: str = "invalid tag") -> None:
+        super().__init__(message)

@@ -6,6 +6,7 @@ from app.core.config import get_settings
 from app.core.exception_handlers import register_exception_handlers
 from app.modules.auth.router import router as auth_router
 from app.modules.contents.router import router as contents_router
+from app.modules.contents.router import tags_router
 from app.modules.projects.router import invitations_router
 from app.modules.projects.router import router as projects_router
 
@@ -32,6 +33,7 @@ def create_app() -> FastAPI:
     app.include_router(projects_router)
     app.include_router(invitations_router)
     app.include_router(contents_router)
+    app.include_router(tags_router)
     return app
 
 

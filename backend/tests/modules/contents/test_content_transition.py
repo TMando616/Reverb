@@ -11,7 +11,13 @@ from app.core.exceptions import (
 from app.modules.contents.models import Content, ContentStatus
 from app.modules.contents.service import ALLOWED, ContentService
 
-from tests.modules.contents.fakes import FakeContentRepository, FakeContentTransitionRepository
+from tests.modules.contents.fakes import (
+    FakeContentRepository,
+    FakeContentTagRepository,
+    FakeContentTransitionRepository,
+    FakeRevisionRepository,
+    FakeTagRepository,
+)
 from tests.modules.projects.fakes import FakeProjectMemberRepository
 
 PROJECT = 10
@@ -57,6 +63,9 @@ def _setup() -> tuple[ContentService, FakeContentRepository, FakeContentTransiti
         contents,  # type: ignore[arg-type]
         ProjectAuthorizer(members),
         transitions,  # type: ignore[arg-type]
+        FakeTagRepository(),  # type: ignore[arg-type]
+        FakeContentTagRepository(),  # type: ignore[arg-type]
+        FakeRevisionRepository(),  # type: ignore[arg-type]
     )
     return service, contents, transitions
 

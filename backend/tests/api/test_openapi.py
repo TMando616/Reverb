@@ -1,6 +1,6 @@
 """API 仕様の結合テスト（tasks.md §7.5）。
 
-``/openapi.json`` が参照でき、foundation で公開するエンドポイントが全部載っている
+``/openapi.json`` が参照でき、公開するエンドポイントが全部載っている
 こと。ここが欠けると、BFF（§12）が契約を読めない。
 """
 
@@ -25,6 +25,15 @@ EXPECTED_OPERATIONS = {
     ("/projects/{project_id}/contents/{content_id}", "patch"),
     ("/projects/{project_id}/contents/{content_id}", "delete"),
     ("/projects/{project_id}/contents/{content_id}/transition", "post"),
+    # content-pipeline
+    ("/projects/{project_id}/contents/{content_id}/tags", "put"),
+    ("/projects/{project_id}/contents/{content_id}/revisions", "get"),
+    ("/projects/{project_id}/contents/{content_id}/revisions/{revision_no}", "get"),
+    ("/projects/{project_id}/contents/{content_id}/revisions/{revision_no}/restore", "post"),
+    ("/projects/{project_id}/tags", "get"),
+    ("/projects/{project_id}/tags", "post"),
+    ("/projects/{project_id}/tags/{tag_id}", "patch"),
+    ("/projects/{project_id}/tags/{tag_id}", "delete"),
 }
 
 

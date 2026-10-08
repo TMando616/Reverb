@@ -11,8 +11,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.authorization import ProjectAuthorizer
 from app.core.db import get_session
-from app.modules.contents.repository import ContentRepository, ContentTransitionRepository
-from app.modules.contents.service import ContentService
+from app.modules.contents.repository import (
+    ContentRepository,
+    ContentTagRepository,
+    ContentTransitionRepository,
+    RevisionRepository,
+    TagRepository,
+)
+from app.modules.contents.service import ContentService, TagService
 from app.modules.projects.repository import ProjectMemberRepository
 
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
@@ -24,4 +30,14 @@ def get_content_service(session: SessionDep) -> ContentService:
         # ProjectMemberRepository は構造的に MemberRoleReader を満たす（design.md §5-2）。
         authz=ProjectAuthorizer(ProjectMemberRepository(session)),
         transitions=ContentTransitionRepository(session),
+        tags=TagRepository(session),
+        content_tags=ContentTagRepository(session),
+        revisions=RevisionRepository(session),
+    )
+
+
+def get_tag_service(session: SessionDep) -> TagService:
+    return TagService(
+        tags=TagRepository(session),
+        authz=ProjectAuthorizer(ProjectMemberRepository(session)),
     )

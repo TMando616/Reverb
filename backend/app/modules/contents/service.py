@@ -6,16 +6,56 @@ HTTP のことは知らない（``fastapi`` / ``Request`` は import しない�
 同じチェックを受ける（design.md §5-2、F5）。
 """
 
-from collections.abc import Sequence
+import unicodedata
+from collections.abc import Iterable, Sequence
+from enum import Enum
+from typing import Final, Literal
 
 from app.core.authorization import Actor, Permission, ProjectAuthorizer
 from app.core.exceptions import (
     InvalidStateTransitionError,
+    InvalidTagError,
     NotFoundError,
     VersionConflictError,
 )
-from app.modules.contents.models import Content, ContentStatus
-from app.modules.contents.repository import ContentRepository, ContentTransitionRepository
+from app.modules.contents.models import (
+    Content,
+    ContentRevision,
+    ContentStatus,
+    RevisionKind,
+    Tag,
+)
+from app.modules.contents.repository import (
+    ContentRepository,
+    ContentTagRepository,
+    ContentTransitionRepository,
+    RevisionRepository,
+    RevisionSummary,
+    TagRepository,
+)
+
+# 1コンテンツに付けられるタグの上限（content-pipeline design.md §3-2）。
+MAX_TAGS_PER_CONTENT = 10
+# NFKC で伸びた後の name_key の上限（列の長さと同じ）。
+_TAG_NAME_KEY_MAX_LENGTH = 200
+
+
+class _Unset(Enum):
+    """「省略」と「None（消す）」を区別するための番兵（content-pipeline design.md §6-2）。"""
+
+    UNSET = "UNSET"
+
+
+UNSET: Final = _Unset.UNSET
+
+
+def tag_name_key(name: str) -> str:
+    """同一判定用のキー：NFKC → casefold → 前後空白除去（content-pipeline design.md §3-2）。
+
+    「Python」と「python」、全角「ＡＷＳ」と「AWS」が同じキーになる。
+    """
+    return unicodedata.normalize("NFKC", name).casefold().strip()
+
 
 # 状態遷移表（design.md §8-1 の確定表）。キーが from、値が遷移してよい to の集合。
 # in_review → published は含めない：公開処理と一体で行うため publishing スペックが
@@ -40,27 +80,57 @@ class ContentService:
         contents: ContentRepository,
         authz: ProjectAuthorizer,
         transitions: ContentTransitionRepository,
+        tags: TagRepository,
+        content_tags: ContentTagRepository,
+        revisions: RevisionRepository,
     ) -> None:
         self._contents = contents
         self._authz = authz
         self._transitions = transitions
+        self._tags = tags
+        self._content_tags = content_tags
+        self._revisions = revisions
 
-    async def create(self, actor: Actor, project_id: int, *, title: str, body_md: str) -> Content:
-        """新しいコンテンツは必ず ``inbox`` から始まる（F6）。"""
+    async def create(
+        self,
+        actor: Actor,
+        project_id: int,
+        *,
+        title: str,
+        body_md: str,
+        tag_ids: Iterable[int] = (),
+        source_note_path: str | None = None,
+    ) -> Content:
+        """新しいコンテンツは必ず ``inbox`` から始まり、初版のリビジョンを1件持つ（F6・C7）。"""
         await self._authz.require(actor, project_id, Permission.CONTENT_WRITE)
-        return await self._contents.create(
+        wanted = await self._validated_tag_ids(project_id, tag_ids)
+        content = await self._contents.create(
             project_id=project_id,
             title=title,
             body_md=body_md,
             status=ContentStatus.INBOX,
             created_by=actor.user_id,
+            source_note_path=source_note_path,
         )
+        await self._revisions.append(content, kind=RevisionKind.CREATE, actor_user_id=actor.user_id)
+        if wanted:
+            await self._content_tags.add(
+                project_id=project_id, content_id=content.id, tag_ids=wanted
+            )
+        await self._contents.reload_tags(content)
+        return content
 
     async def list(
-        self, actor: Actor, project_id: int, *, status: ContentStatus | None = None
+        self,
+        actor: Actor,
+        project_id: int,
+        *,
+        statuses: Iterable[ContentStatus] = (),
+        tag_ids: Iterable[int] = (),
+        q: str | None = None,
     ) -> Sequence[Content]:
         await self._authz.require(actor, project_id, Permission.CONTENT_VIEW)
-        return await self._contents.list(project_id, status)
+        return await self._contents.list(project_id, statuses=statuses, tag_ids=tag_ids, q=q)
 
     async def get(self, actor: Actor, project_id: int, content_id: int) -> Content:
         await self._authz.require(actor, project_id, Permission.CONTENT_VIEW)
@@ -75,6 +145,7 @@ class ContentService:
         *,
         title: str | None = None,
         body_md: str | None = None,
+        source_note_path: str | None | Literal[_Unset.UNSET] = UNSET,
     ) -> Content:
         """title / body を二段の楽観ロックの下で更新する（design.md §3-3）。
 
@@ -86,15 +157,95 @@ class ContentService:
         変更のない値を送っても UPDATE は発行されず、``version`` はそのまま。
         これは意図した挙動：何も変わっていないなら、他クライアントのコピーが
         古くなったわけでもない。
+
+        title / body_md が実際に変わったときだけ、flush が通った**後**にリビジョンを
+        1件残す。楽観ロックに負けた保存（409）は版を残さない（content-pipeline
+        design.md §6-2）。``source_note_path`` の変更は ``version`` を進めるが版は作らない。
         """
         await self._authz.require(actor, project_id, Permission.CONTENT_WRITE)
         content = await self._get_or_404(content_id, project_id)
         self._check_version(content, expected_version)
+        body_changed = (title is not None and title != content.title) or (
+            body_md is not None and body_md != content.body_md
+        )
         if title is not None:
             content.title = title
         if body_md is not None:
             content.body_md = body_md
+        if source_note_path is not UNSET:
+            content.source_note_path = source_note_path
         await self._contents.flush()
+        if body_changed:
+            await self._revisions.append(
+                content, kind=RevisionKind.SAVE, actor_user_id=actor.user_id
+            )
+        return content
+
+    async def set_tags(
+        self, actor: Actor, project_id: int, content_id: int, tag_ids: Iterable[int]
+    ) -> Content:
+        """タグを集合で置き換える（content-pipeline design.md §6-4）。
+
+        ``version`` は進めず、楽観ロックも取らない。集合で送るので、2人が同時に
+        付け替えても「半端に混ざる」ことはなく、後勝ちになるだけ。
+        """
+        await self._authz.require(actor, project_id, Permission.CONTENT_WRITE)
+        content = await self._get_or_404(content_id, project_id)
+        wanted = await self._validated_tag_ids(project_id, tag_ids)
+        current = await self._content_tags.tag_ids_of(content.id)
+        await self._content_tags.remove(content_id=content.id, tag_ids=current - wanted)
+        await self._content_tags.add(
+            project_id=project_id, content_id=content.id, tag_ids=wanted - current
+        )
+        await self._contents.reload_tags(content)
+        return content
+
+    async def list_revisions(
+        self,
+        actor: Actor,
+        project_id: int,
+        content_id: int,
+        *,
+        before: int | None = None,
+        limit: int = 50,
+    ) -> Sequence[RevisionSummary]:
+        await self._authz.require(actor, project_id, Permission.CONTENT_VIEW)
+        content = await self._get_or_404(content_id, project_id)
+        return await self._revisions.list(content.id, before=before, limit=limit)
+
+    async def get_revision(
+        self, actor: Actor, project_id: int, content_id: int, revision_no: int
+    ) -> ContentRevision:
+        await self._authz.require(actor, project_id, Permission.CONTENT_VIEW)
+        content = await self._get_or_404(content_id, project_id)
+        return await self._get_revision_or_404(content.id, revision_no)
+
+    async def restore(
+        self,
+        actor: Actor,
+        project_id: int,
+        content_id: int,
+        revision_no: int,
+        expected_version: int,
+    ) -> Content:
+        """指定した版の内容で、新しい版を1件作る。履歴は巻き戻さない（C7・design.md §6-3）。
+
+        今と同じ内容の版を選んだときは何もしない（``version`` もリビジョンも据え置き）。
+        """
+        await self._authz.require(actor, project_id, Permission.CONTENT_WRITE)
+        content = await self._get_or_404(content_id, project_id)
+        self._check_version(content, expected_version)
+        revision = await self._get_revision_or_404(content.id, revision_no)
+        if (revision.title, revision.body_md) == (content.title, content.body_md):
+            return content
+        content.title, content.body_md = revision.title, revision.body_md
+        await self._contents.flush()
+        await self._revisions.append(
+            content,
+            kind=RevisionKind.RESTORE,
+            actor_user_id=actor.user_id,
+            restored_from_no=revision.revision_no,
+        )
         return content
 
     async def delete(self, actor: Actor, project_id: int, content_id: int) -> None:
@@ -133,6 +284,22 @@ class ContentService:
         )
         return content
 
+    async def _validated_tag_ids(self, project_id: int, tag_ids: Iterable[int]) -> set[int]:
+        """全部この企画のタグで、上限以内なら集合にして返す。そうでなければ 422。"""
+        wanted = set(tag_ids)
+        if len(wanted) > MAX_TAGS_PER_CONTENT:
+            raise InvalidTagError(f"at most {MAX_TAGS_PER_CONTENT} tags per content")
+        if wanted - await self._tags.existing_ids(project_id, wanted):
+            # 他企画のタグと存在しないタグを区別しない（他企画の存在を漏らさない）。
+            raise InvalidTagError()
+        return wanted
+
+    async def _get_revision_or_404(self, content_id: int, revision_no: int) -> ContentRevision:
+        revision = await self._revisions.get(content_id, revision_no)
+        if revision is None:
+            raise NotFoundError("revision")
+        return revision
+
     async def _get_or_404(self, content_id: int, project_id: int) -> Content:
         # project_id で絞り込んでいるので、他企画のコンテンツ id は単に「無い」。
         content = await self._contents.get(content_id, project_id)
@@ -144,3 +311,52 @@ class ContentService:
     def _check_version(content: Content, expected_version: int) -> None:
         if content.version != expected_version:
             raise VersionConflictError()
+
+
+class TagService:
+    """企画ごとのタグの管理（content-pipeline design.md §6-4）。
+
+    タグの作成・改名・削除は ``CONTENT_WRITE`` に相乗りする。タグはコンテンツに
+    付けるためだけに存在するので、別の Permission を作らない（design.md §5）。
+    """
+
+    def __init__(self, tags: TagRepository, authz: ProjectAuthorizer) -> None:
+        self._tags = tags
+        self._authz = authz
+
+    async def list(self, actor: Actor, project_id: int) -> Sequence[tuple[Tag, int]]:
+        await self._authz.require(actor, project_id, Permission.CONTENT_VIEW)
+        return await self._tags.list_with_usage(project_id)
+
+    async def create(self, actor: Actor, project_id: int, *, name: str) -> Tag:
+        await self._authz.require(actor, project_id, Permission.CONTENT_WRITE)
+        display, key = self._normalize(name)
+        return await self._tags.create(project_id=project_id, name=display, name_key=key)
+
+    async def rename(self, actor: Actor, project_id: int, tag_id: int, *, name: str) -> Tag:
+        """付与済みのコンテンツへは何もしなくても反映される（中間テーブルは tag_id だけ持つ）。"""
+        await self._authz.require(actor, project_id, Permission.CONTENT_WRITE)
+        tag = await self._get_or_404(tag_id, project_id)
+        display, key = self._normalize(name)
+        await self._tags.rename(tag, name=display, name_key=key)
+        return tag
+
+    async def delete(self, actor: Actor, project_id: int, tag_id: int) -> None:
+        """付与も外れる。コンテンツ自体は残る（C1）。"""
+        await self._authz.require(actor, project_id, Permission.CONTENT_WRITE)
+        tag = await self._get_or_404(tag_id, project_id)
+        await self._tags.delete(tag)
+
+    async def _get_or_404(self, tag_id: int, project_id: int) -> Tag:
+        tag = await self._tags.get(tag_id, project_id)
+        if tag is None:
+            raise NotFoundError("tag")
+        return tag
+
+    @staticmethod
+    def _normalize(name: str) -> tuple[str, str]:
+        display = name.strip()
+        key = tag_name_key(display)
+        if not key or len(key) > _TAG_NAME_KEY_MAX_LENGTH:
+            raise InvalidTagError("tag name is empty or too long")
+        return display, key

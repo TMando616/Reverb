@@ -94,7 +94,7 @@ async def test_list_is_scoped_and_filters_status_and_deleted(
     )
 
     all_mine = await repo.list(mine)
-    only_inbox = await repo.list(mine, ContentStatus.INBOX)
+    only_inbox = await repo.list(mine, [ContentStatus.INBOX])
 
     assert {c.id for c in all_mine} == {inbox.id, adopted.id}
     assert [c.id for c in only_inbox] == [inbox.id]
