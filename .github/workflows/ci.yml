@@ -50,6 +50,13 @@ jobs:
       - name: import-linter (層の依存契約)
         run: uv run lint-imports
 
+      - name: OpenAPI スキーマがフロントのコピーと一致する
+        # フロントの型（frontend/types/api.ts）はこのスキーマから生成する（frontend.md §4）。
+        # API を変えたのに frontend/openapi.json を書き出し直していなければ落とす。
+        run: |
+          uv run python -m app.export_openapi /tmp/openapi.json
+          diff -u ../frontend/openapi.json /tmp/openapi.json
+
       - name: pytest
         # テスト用 DB（reverb_test）は conftest が無ければ作る。
         env:
@@ -75,6 +82,12 @@ jobs:
 
       - name: ESLint
         run: npm run lint
+
+      - name: 型の生成物が最新
+        # openapi.json から生成し直して差分が出たら、生成し忘れ（frontend.md §4）。
+        run: |
+          npm run gen:api
+          git diff --exit-code -- types/api.ts
 
       - name: tsc (型チェック)
         # LayoutProps などの型は Next が生成し、生成物は gitignore してある。

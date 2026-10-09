@@ -183,6 +183,16 @@ npx tsc --noEmit   # 型チェック
 npm run build      # 本番ビルド
 ```
 
+**API の型は OpenAPI から生成する（手書きしない・frontend.md §4）。** API を変えたら2段で更新する。CI はどちらの差分も検出して落とす。
+
+```bash
+# 1. スキーマを書き出す（DB もサーバーも起動しない）
+docker compose exec backend uv run python -m app.export_openapi /tmp/openapi.json \
+    && docker compose cp backend:/tmp/openapi.json frontend/openapi.json
+# 2. 型を生成する（frontend/types/api.ts）
+cd frontend && npm run gen:api
+```
+
 - **`npx next typegen` を忘れると `tsc` が `LayoutProps` を見つけられずに落ちる。** 生成物は gitignore してあるため、CI も同じ順番で走らせている
 - BFF から FastAPI を呼ぶ先は `API_BASE_URL`（compose では `http://backend:8000`）。**ブラウザには出さない**
 - Next.js 16 の作法は `frontend/node_modules/next/dist/docs/` を見る（`frontend/AGENTS.md` も同じことを要求している）

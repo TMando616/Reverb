@@ -1,54 +1,32 @@
 /**
- * API のレスポンス型。
+ * 画面が使う API の型。
  *
- * **暫定で手書きしている。** `frontend.md` §4 は OpenAPI からの生成を求めており、
- * 生成の仕組み（生成物のコミットと CI での差分検出）は M0 の後に入れる。
- * そのとき、このファイルは生成物に置き換える。
+ * **中身は OpenAPI からの生成物（`types/api.ts`）から引く。手で型を書かない**（frontend.md §4）。
+ * ここに置くのは、画面側で使う短い別名と、日本語ラベル・遷移表のような表示用の定数だけ。
+ *
+ * API を変えたら：`backend` で `uv run python -m app.export_openapi ../frontend/openapi.json`
+ * → `npm run gen:api`。CI は両方の差分を検出して落とす。
  */
 
-export type ContentStatus =
-  | "inbox"
-  | "adopted"
-  | "drafting"
-  | "in_review"
-  | "published"
-  | "shelved";
+import type { components } from "@/types/api";
 
-export type Role = "owner" | "editor" | "reviewer";
+type Schemas = components["schemas"];
 
-export type Project = {
-  id: number;
-  name: string;
-  role: Role;
-  created_at: string;
-};
+export type ContentStatus = Schemas["ContentStatus"];
+export type Role = Schemas["Role"];
+export type RevisionKind = Schemas["RevisionKind"];
 
-export type Content = {
-  id: number;
-  project_id: number;
-  title: string;
-  body_md: string;
-  status: ContentStatus;
-  version: number;
-  created_by: number;
-  created_at: string;
-  updated_at: string;
-};
-
+export type Project = Schemas["ProjectOut"];
+export type Content = Schemas["ContentOut"];
 /** 一覧の行。API は本文を返さない（body_md は単体取得で引く）。 */
-export type ContentSummary = Omit<Content, "body_md">;
-
-export type Me = {
-  id: number;
-  email: string;
-  display_name: string;
-  is_demo: boolean;
-};
-
-export type InvitationAccepted = {
-  project_id: number;
-  role: Role;
-};
+export type ContentSummary = Schemas["ContentListItem"];
+export type Tag = Schemas["TagOut"];
+export type TagWithUsage = Schemas["TagWithUsageOut"];
+export type RevisionSummary = Schemas["RevisionSummaryOut"];
+export type Revision = Schemas["RevisionOut"];
+export type Member = Schemas["MemberOut"];
+export type Me = Schemas["MeResponse"];
+export type InvitationAccepted = Schemas["InvitationAcceptOut"];
 
 /** 状態の日本語ラベル。識別子は英語、表示は日本語（design.md §3-2）。 */
 export const STATUS_LABELS: Record<ContentStatus, string> = {
@@ -69,3 +47,34 @@ export const ALLOWED_TRANSITIONS: Record<ContentStatus, ContentStatus[]> = {
   published: [],
   shelved: ["inbox"],
 };
+
+/** カンバンの列の並び。状態遷移の流れに沿わせる（content-pipeline C2）。 */
+export const STATUS_ORDER: ContentStatus[] = [
+  "inbox",
+  "adopted",
+  "drafting",
+  "in_review",
+  "published",
+  "shelved",
+];
+
+/**
+ * 書き込み系の操作を画面に出すか。**UX のための出し分けで、防御は API の 403**（frontend.md §1）。
+ * owner / editor で、かつ demo でないとき。
+ */
+export function canWrite(role: Role, isDemo: boolean): boolean {
+  return !isDemo && (role === "owner" || role === "editor");
+}
+
+/** 日時の表示。サーバー描画とブラウザでタイムゾーンがズレないよう固定する。 */
+const DATE_TIME = new Intl.DateTimeFormat("ja-JP", {
+  timeZone: "Asia/Tokyo",
+  month: "numeric",
+  day: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+});
+
+export function formatDateTime(iso: string): string {
+  return DATE_TIME.format(new Date(iso));
+}
