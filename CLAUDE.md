@@ -193,6 +193,7 @@ docker compose exec backend uv run python -m app.export_openapi /tmp/openapi.jso
 cd frontend && npm run gen:api
 ```
 
+- **npm の依存を足したら `docker compose up --build --renew-anon-volumes`（`-V`）で起動し直す。** compose の `node_modules` は匿名ボリュームで、`--build` だけでは古いボリュームが引き継がれ、コンテナ内で `Module not found` になる
 - **`npx next typegen` を忘れると `tsc` が `LayoutProps` を見つけられずに落ちる。** 生成物は gitignore してあるため、CI も同じ順番で走らせている
 - BFF から FastAPI を呼ぶ先は `API_BASE_URL`（compose では `http://backend:8000`）。**ブラウザには出さない**
 - Next.js 16 の作法は `frontend/node_modules/next/dist/docs/` を見る（`frontend/AGENTS.md` も同じことを要求している）
