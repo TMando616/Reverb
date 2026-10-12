@@ -11,5 +11,6 @@ async function handle(request: Request, { params }: Context) {
 
 export const GET = handle;
 export const POST = handle;
+export const PUT = handle; // タグの付け替え（content-pipeline design.md §6-4）
 export const PATCH = handle;
 export const DELETE = handle;
