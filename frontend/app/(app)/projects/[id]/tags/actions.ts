@@ -9,6 +9,8 @@ import type { ActionResult } from "../actions";
 
 function message(status: number, code: string, fallback: string): string {
   if (code === "tag_name_conflict") return "同じ名前のタグがあります";
+  // 正規化（NFKC）した名前が空、または長くなりすぎる
+  if (code === "invalid_tag") return "この名前はタグに使えません。別の名前にしてください";
   if (status === 422) return "タグ名は1〜50文字です";
   if (status === 403) return "この操作の権限がありません";
   if (status === 404) return "タグが見つかりません。画面を読み込み直してください";

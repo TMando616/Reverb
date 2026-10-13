@@ -11,12 +11,13 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 
 from sqlalchemy import delete, distinct, func, or_, select
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from sqlalchemy.orm.exc import StaleDataError
 
-from app.core.exceptions import TagNameConflictError, VersionConflictError
+from app.core.exceptions import InvalidTagError, TagNameConflictError, VersionConflictError
 from app.modules.contents.models import (
     Content,
     ContentRevision,
@@ -253,11 +254,21 @@ class ContentTagRepository:
         return set(result.scalars().all())
 
     async def add(self, *, project_id: int, content_id: int, tag_ids: Iterable[int]) -> None:
-        self._session.add_all(
-            ContentTag(project_id=project_id, content_id=content_id, tag_id=tag_id)
+        rows = [
+            {"project_id": project_id, "content_id": content_id, "tag_id": tag_id}
             for tag_id in tag_ids
-        )
-        await self._session.flush()
+        ]
+        if not rows:
+            return
+        # 同時に同じタグを付けた側は ON CONFLICT で何もしない（集合の置き換えは後勝ち）。
+        # 確認のあとにタグが消された場合は複合 FK 違反になるので、422 にする。
+        try:
+            async with self._session.begin_nested():
+                await self._session.execute(
+                    insert(ContentTag).values(rows).on_conflict_do_nothing()
+                )
+        except IntegrityError as exc:
+            raise InvalidTagError() from exc
 
     async def remove(self, *, content_id: int, tag_ids: Iterable[int]) -> None:
         targets = set(tag_ids)
@@ -343,7 +354,10 @@ class RevisionRepository:
             ContentRevision.restored_from_no,
             ContentRevision.created_by,
             ContentRevision.created_at,
-            func.char_length(ContentRevision.body_md),
+            # エディタの文字数（改行を除く）に寄せる。書記素単位にはしないので近似値（design.md §8）
+            func.char_length(
+                func.replace(func.replace(ContentRevision.body_md, "\r", ""), "\n", "")
+            ),
         ).where(ContentRevision.content_id == content_id)
         if before is not None:
             stmt = stmt.where(ContentRevision.revision_no < before)

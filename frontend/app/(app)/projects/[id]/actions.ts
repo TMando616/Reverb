@@ -99,6 +99,10 @@ export async function createTag(projectId: number, name: string): Promise<Create
     if (result.error.code === "tag_name_conflict") {
       return { ok: false, message: "同じ名前のタグがあります" };
     }
+    // 正規化（NFKC）した名前が空、または長くなりすぎる（例：㍿ は4文字に展開される）
+    if (result.error.code === "invalid_tag") {
+      return { ok: false, message: "この名前はタグに使えません。別の名前にしてください" };
+    }
     if (result.status === 422) {
       return { ok: false, message: "タグ名は50文字までです" };
     }

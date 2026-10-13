@@ -1,7 +1,7 @@
 "use client";
 
 import { Popover } from "radix-ui";
-import { useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 
 export type PickerOption<T extends string | number> = { value: T; label: string };
 
@@ -29,6 +29,11 @@ export function CheckboxPicker<T extends string | number>({
 }: Props<T>) {
   const [draft, setDraft] = useState("");
   const [creating, setCreating] = useState(false);
+  // 作成を待つ間に選択が変わることがあるので、作り終えた時点の選択に足す
+  const selectedRef = useRef(selected);
+  useEffect(() => {
+    selectedRef.current = selected;
+  });
 
   function toggle(value: T) {
     onChange(
@@ -44,7 +49,7 @@ export function CheckboxPicker<T extends string | number>({
     try {
       const value = await onCreate(name);
       if (value !== null) {
-        onChange([...selected, value]);
+        onChange([...selectedRef.current, value]);
         setDraft("");
       }
     } finally {

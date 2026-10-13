@@ -9,6 +9,8 @@ import { bffFetch } from "@/lib/api/client";
 import { queryKeys } from "@/lib/api/query-keys";
 import { formatDateTime, type Revision, type RevisionKind, type RevisionSummary } from "@/lib/api/types";
 
+import type { RestoreOutcome } from "./use-content-writer";
+
 const PAGE_SIZE = 50;
 
 const KIND_LABELS: Record<RevisionKind, string> = {
@@ -23,7 +25,7 @@ type Props = {
   /** user_id → 表示名。企画のメンバー一覧から引く（design.md §9-7）。 */
   memberNames: Record<number, string>;
   /** 渡されたときだけ [この版に戻す] を出す（owner / editor）。エラー文言を返す。 */
-  onRestore?: (revisionNo: number) => Promise<string | null>;
+  onRestore?: (revisionNo: number) => Promise<RestoreOutcome>;
 };
 
 async function unwrap<T>(promise: ReturnType<typeof bffFetch<T>>): Promise<T> {
@@ -65,10 +67,11 @@ export function RevisionPanel({ projectId, contentId, memberNames, onRestore }: 
   async function restore() {
     if (!selected || !onRestore) return;
     setRestoring(true);
-    const error = await onRestore(selected.revision_no);
+    const outcome = await onRestore(selected.revision_no);
     setRestoring(false);
-    if (error) {
-      setMessage(error);
+    if (!outcome.restored) {
+      // キャンセル（message が null）のときはダイアログを開いたままにする
+      if (outcome.message) setMessage(outcome.message);
       return;
     }
     setSelected(null);

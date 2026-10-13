@@ -21,6 +21,9 @@ const RETRY_DELAY_MS = 10_000;
 
 const sameDraft = (a: Draft, b: Draft) => a.title === b.title && a.body === b.body;
 
+/** 復元の結果。キャンセルと失敗を区別する（キャンセルでダイアログを閉じない）。 */
+export type RestoreOutcome = { restored: true } | { restored: false; message: string | null };
+
 /**
  * 編集画面の書き込みをすべて受け持つ（content-pipeline design.md §9-5〜9-7）。
  *
@@ -47,6 +50,9 @@ export function useContentWriter(projectId: number, initial: Content) {
   const baseVersion = useRef(initial.version);
   const conflicted = useRef(false);
   const queue = useRef<Promise<unknown>>(Promise.resolve());
+  // タグの PUT は version に関わらないので本文の列とは別に、ただし順番どおりに送る
+  const tagQueue = useRef<Promise<unknown>>(Promise.resolve());
+  const tagRequest = useRef(0);
   const autosaveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const retryTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const retried = useRef(false);
@@ -158,26 +164,33 @@ export function useContentWriter(projectId: number, initial: Content) {
     return save();
   }, [save]);
 
-  /** 元ノートのパス。`version` を進めるので列に並べる（design.md §4）。 */
+  /**
+   * 元ノートのパス。`version` を進めるので列に並べる（design.md §4）。
+   * 成功したらサーバーが正規化した値（`\` → `/`）を返し、入力欄をそれに合わせてもらう。
+   */
   const saveSourceNotePath = useCallback(
-    (value: string | null): Promise<string | null> =>
+    (value: string | null): Promise<{ ok: true; value: string | null } | { ok: false; message: string }> =>
       enqueue(async () => {
-        if (conflicted.current) return "他の画面で更新されたため保存できません";
+        if (conflicted.current) return { ok: false, message: "他の画面で更新されたため保存できません" };
         const result = await bffFetch<Content>(path, {
           method: "PATCH",
           body: JSON.stringify({ source_note_path: value, expected_version: baseVersion.current }),
         });
         if (result.ok) {
           accept(result.data);
-          return null;
+          return { ok: true, value: result.data.source_note_path };
         }
         if (result.status === 409) {
           markConflict();
-          return "他の画面で更新されました";
+          return { ok: false, message: "他の画面で更新されました" };
         }
-        return result.status === 422
-          ? "Vault からの相対パスで入力してください（.. や絶対パスは使えません）"
-          : "保存できませんでした";
+        return {
+          ok: false,
+          message:
+            result.status === 422
+              ? "Vault からの相対パスで入力してください（.. や絶対パスは使えません）"
+              : "保存できませんでした",
+        };
       }),
     [enqueue, path, accept, markConflict],
   );
@@ -204,21 +217,35 @@ export function useContentWriter(projectId: number, initial: Content) {
     [enqueue, path, accept, markConflict],
   );
 
-  /** タグの付け替え。`version` を進めないので、キャッシュの `tags` だけを差し替える。 */
+  /**
+   * タグの付け替え。`version` を進めないので、キャッシュの `tags` だけを差し替える。
+   * 選択はレスポンスを待たずにキャッシュへ入れる。待つと、続けてチェックしたときに
+   * 古い集合から次の PUT を組み立ててしまい、先に付けたタグが外れる。
+   */
   const setTags = useCallback(
-    async (tagIds: number[]): Promise<string | null> => {
-      const result = await bffFetch<Content>(`${path}/tags`, {
-        method: "PUT",
-        body: JSON.stringify({ tag_ids: tagIds }),
-      });
-      if (!result.ok) {
-        return result.code === "invalid_tag"
-          ? "使えないタグが含まれています。画面を読み込み直してください"
-          : "タグを保存できませんでした";
-      }
-      const tags: Tag[] = result.data.tags;
+    (tags: Tag[]): Promise<string | null> => {
       queryClient.setQueryData<Content>(key, (old) => (old ? { ...old, tags } : old));
-      return null;
+      const request = ++tagRequest.current;
+      const run = tagQueue.current.then(async () => {
+        const result = await bffFetch<Content>(`${path}/tags`, {
+          method: "PUT",
+          body: JSON.stringify({ tag_ids: tags.map((t) => t.id) }),
+        });
+        // 後続の PUT が控えていれば、その選択を画面に残す（最後の1件がサーバーの最終状態になる）
+        const latest = request === tagRequest.current;
+        if (!result.ok) {
+          // 楽観的に入れた選択を、サーバーの実際の状態で上書きする
+          if (latest) void queryClient.invalidateQueries({ queryKey: key });
+          return result.code === "invalid_tag"
+            ? "使えないタグが含まれています。画面を読み込み直してください"
+            : "タグを保存できませんでした";
+        }
+        const saved: Tag[] = result.data.tags;
+        if (latest) queryClient.setQueryData<Content>(key, (old) => (old ? { ...old, tags: saved } : old));
+        return null;
+      });
+      tagQueue.current = run.catch(() => undefined);
+      return run;
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [queryClient, path],
@@ -229,14 +256,19 @@ export function useContentWriter(projectId: number, initial: Content) {
    * 未保存の変更があれば先に保存するか確かめる。
    */
   const restore = useCallback(
-    async (revisionNo: number): Promise<string | null> => {
+    async (revisionNo: number): Promise<RestoreOutcome> => {
+      const fail = (message: string | null): RestoreOutcome => ({ restored: false, message });
       if (!sameDraft(draftRef.current, savedRef.current)) {
-        if (!window.confirm("未保存の変更があります。先に保存してから戻しますか？")) return null;
+        if (!window.confirm("未保存の変更があります。先に保存してから戻しますか？")) return fail(null);
         await saveNow();
-        if (conflicted.current) return "他の画面で更新されたため戻せません";
+        if (conflicted.current) return fail("他の画面で更新されたため戻せません");
+        // 保存に失敗した（通信エラー・タイトルが空など）まま戻すと、残したかった編集が消える
+        if (!sameDraft(draftRef.current, savedRef.current)) {
+          return fail("未保存の変更を保存できなかったため、戻していません");
+        }
       }
-      return enqueue(async () => {
-        if (conflicted.current) return "他の画面で更新されたため戻せません";
+      return enqueue(async (): Promise<RestoreOutcome> => {
+        if (conflicted.current) return fail("他の画面で更新されたため戻せません");
         const result = await bffFetch<Content>(`${path}/revisions/${revisionNo}/restore`, {
           method: "POST",
           body: JSON.stringify({ expected_version: baseVersion.current }),
@@ -244,9 +276,9 @@ export function useContentWriter(projectId: number, initial: Content) {
         if (!result.ok) {
           if (result.status === 409) {
             markConflict();
-            return "他の画面で更新されました";
+            return fail("他の画面で更新されました");
           }
-          return "戻せませんでした";
+          return fail("戻せませんでした");
         }
         const restored = { title: result.data.title, body: result.data.body_md };
         savedRef.current = restored;
@@ -254,7 +286,12 @@ export function useContentWriter(projectId: number, initial: Content) {
         setDraft(restored);
         accept(result.data);
         setSavedAt(result.data.updated_at);
-        return null;
+        // 直前の保存失敗の表示と、控えている再試行を片付ける（バッファはもう保存済み）
+        clearTimeout(retryTimer.current);
+        retried.current = false;
+        setPhase("idle");
+        setMessage("");
+        return { restored: true };
       });
     },
     [enqueue, path, accept, markConflict, saveNow],

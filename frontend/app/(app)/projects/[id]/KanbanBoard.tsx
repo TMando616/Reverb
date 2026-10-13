@@ -38,6 +38,8 @@ export function KanbanBoard({ projectId, contents, visibleStatuses, canWrite }: 
   );
   // カードごとの失敗メッセージ。サーバー状態ではないのでローカルに閉じる（frontend.md §2）。
   const [errors, setErrors] = useState<Record<number, string>>({});
+  // 移動中のカード。新しい version が props で届くまで、古い version で次の移動を送らせない
+  const [moving, setMoving] = useState<ReadonlySet<number>>(new Set());
 
   function move(content: ContentSummary, to: ContentStatus) {
     setErrors((prev) => {
@@ -45,12 +47,18 @@ export function KanbanBoard({ projectId, contents, visibleStatuses, canWrite }: 
       delete next[content.id];
       return next;
     });
+    setMoving((prev) => new Set(prev).add(content.id));
     startTransition(async () => {
       applyMove({ contentId: content.id, to });
       const result = await transitionContent(projectId, content.id, to, content.version);
       if (!result.ok) {
         setErrors((prev) => ({ ...prev, [content.id]: result.message }));
       }
+      setMoving((prev) => {
+        const next = new Set(prev);
+        next.delete(content.id);
+        return next;
+      });
     });
   }
 
@@ -95,7 +103,7 @@ export function KanbanBoard({ projectId, contents, visibleStatuses, canWrite }: 
                       <span className="text-xs text-gray-500">
                         {formatDateTime(content.updated_at)} 更新
                       </span>
-                      {canWrite && (
+                      {canWrite && !moving.has(content.id) && (
                         <Menu
                           label="移動"
                           items={(ALLOWED_TRANSITIONS[content.status] ?? []).map((to) => ({

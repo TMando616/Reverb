@@ -40,6 +40,7 @@ async def test_tag_write_filter_save_and_restore(owner_client: AsyncClient) -> N
     listed = await owner_client.get(f"{base}/contents", params={"tag": tag_id, "q": "ecs"})
     assert [row["id"] for row in listed.json()] == [content["id"]]
     assert "body_md" not in listed.json()[0]
+    assert listed.json()[0]["tags"] == [{"id": tag_id, "name": "AWS"}]
 
     path = f"{base}/contents/{content['id']}"
     first = await owner_client.patch(path, json={"body_md": "第1稿", "expected_version": 1})

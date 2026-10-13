@@ -146,3 +146,14 @@ async def test_list_pages_with_before_and_reports_length(world: World) -> None:
     )
 
     assert [(r.revision_no, r.body_length) for r in page] == [(3, 2), (2, 1)]
+
+
+async def test_length_excludes_line_breaks(world: World) -> None:
+    # エディタの文字数（改行を除く）と揃える（design.md §8）
+    content = await world.contents.create(
+        world.owner, world.project, title="t", body_md="あい\nう\r\nえ"
+    )
+
+    [row] = await world.contents.list_revisions(world.owner, world.project, content.id)
+
+    assert row.body_length == 4

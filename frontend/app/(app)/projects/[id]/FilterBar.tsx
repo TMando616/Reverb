@@ -48,6 +48,8 @@ export function FilterBar({ tags, initial }: Props) {
   useEffect(() => () => clearTimeout(debounce.current), []);
 
   function apply(next: Filters) {
+    // 控えているキーワードの反映を止める（クリア直後に古いキーワードで絞り直さない）
+    clearTimeout(debounce.current);
     setFilters(next);
     startTransition(() => {
       // pathname は自分のページ（/projects/[id]）。外から来た URL は使わない。

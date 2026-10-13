@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 
 import { countChars, CHAR_COUNT_NOTE } from "@/components/contents/char-count";
 import { MarkdownPreview } from "@/components/contents/MarkdownPreview";
@@ -64,6 +64,8 @@ export function ContentEditor({ projectId, initial, tags, memberNames }: Props) 
   const [notice, setNotice] = useState("");
   const [createdTags, setCreatedTags] = useState<Tag[]>([]);
   const [notePath, setNotePath] = useState(content.source_note_path ?? "");
+  // 最後に送った値。Enter のあとの blur で同じ値をもう一度送らない
+  const submittedNotePath = useRef(content.source_note_path);
 
   // Cmd/Ctrl + S で今すぐ保存（design.md §9-6）。
   const { saveNow } = writer;
@@ -78,12 +80,12 @@ export function ContentEditor({ projectId, initial, tags, memberNames }: Props) 
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [saveNow]);
 
-  const tagOptions = [...tags, ...createdTags.filter((c) => !tags.some((t) => t.id === c.id))].map(
-    (tag) => ({ value: tag.id, label: tag.name }),
-  );
+  const allTags = [...tags, ...createdTags.filter((c) => !tags.some((t) => t.id === c.id))];
+  const tagOptions = allTags.map((tag) => ({ value: tag.id, label: tag.name }));
 
   async function changeTags(tagIds: number[]) {
-    setNotice((await writer.setTags(tagIds)) ?? "");
+    const chosen = allTags.filter((tag) => tagIds.includes(tag.id));
+    setNotice((await writer.setTags(chosen)) ?? "");
   }
 
   async function addTag(name: string): Promise<number | null> {
@@ -99,8 +101,17 @@ export function ContentEditor({ projectId, initial, tags, memberNames }: Props) 
   async function submitNotePath(event: FormEvent) {
     event.preventDefault();
     const value = notePath.trim() === "" ? null : notePath.trim();
-    if (value === content.source_note_path) return;
-    setNotice((await writer.saveSourceNotePath(value)) ?? "");
+    if (value === submittedNotePath.current) return;
+    submittedNotePath.current = value;
+    const result = await writer.saveSourceNotePath(value);
+    if (!result.ok) {
+      submittedNotePath.current = content.source_note_path;
+      setNotice(result.message);
+      return;
+    }
+    submittedNotePath.current = result.value;
+    setNotePath(result.value ?? "");
+    setNotice("");
   }
 
   async function copyMine() {
@@ -116,7 +127,10 @@ export function ContentEditor({ projectId, initial, tags, memberNames }: Props) 
     if (!window.confirm("自分の編集を破棄して、最新の内容を読み込みます。よろしいですか？")) return;
     const latest = await writer.reloadLatest();
     setNotice(latest ? "" : "最新を読み込めませんでした");
-    if (latest) setNotePath(latest.source_note_path ?? "");
+    if (latest) {
+      submittedNotePath.current = latest.source_note_path;
+      setNotePath(latest.source_note_path ?? "");
+    }
   }
 
   const chars = countChars(draft.body);

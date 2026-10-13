@@ -7,6 +7,7 @@ from app.core.exceptions import (
     NotFoundError,
     TagNameConflictError,
 )
+from app.modules.contents.repository import ContentTagRepository
 from app.modules.contents.service import MAX_TAGS_PER_CONTENT, tag_name_key
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -121,6 +122,46 @@ async def test_set_tags_replaces_the_set(world: World) -> None:
     assert sorted(t.name for t in updated.tags) == ["CI", "Go"]
     # タグの付け替えは version を進めない（design.md §4）。
     assert updated.version == version
+
+
+async def test_same_tag_twice_is_attached_once(world: World) -> None:
+    aws = await world.tags.create(world.owner, world.project, name="AWS")
+    content = await world.contents.create(
+        world.owner, world.project, title="a", body_md="", tag_ids=[aws.id, aws.id]
+    )
+    assert [t.name for t in content.tags] == ["AWS"]
+
+    updated = await world.contents.set_tags(world.owner, world.project, content.id, [aws.id] * 2)
+
+    assert [t.name for t in updated.tags] == ["AWS"]
+
+
+async def test_adding_an_already_attached_tag_is_a_no_op(
+    world: World, db_session: AsyncSession
+) -> None:
+    # 2つの画面が同時に同じタグを付けた場合（どちらも「未付与」と読んでから INSERT する）
+    aws = await world.tags.create(world.owner, world.project, name="AWS")
+    content = await world.contents.create(
+        world.owner, world.project, title="a", body_md="", tag_ids=[aws.id]
+    )
+
+    await ContentTagRepository(db_session).add(
+        project_id=world.project, content_id=content.id, tag_ids=[aws.id]
+    )
+
+    assert await ContentTagRepository(db_session).tag_ids_of(content.id) == {aws.id}
+
+
+async def test_adding_a_deleted_tag_is_invalid(world: World, db_session: AsyncSession) -> None:
+    # 存在確認のあとにタグが消された場合（複合 FK 違反）
+    content = await world.contents.create(world.owner, world.project, title="a", body_md="")
+
+    with pytest.raises(InvalidTagError):
+        await ContentTagRepository(db_session).add(
+            project_id=world.project, content_id=content.id, tag_ids=[999_999]
+        )
+    # SAVEPOINT の中で失敗したので、セッションは続けて使える
+    assert await ContentTagRepository(db_session).tag_ids_of(content.id) == set()
 
 
 async def test_tags_of_another_project_are_rejected(world: World) -> None:
