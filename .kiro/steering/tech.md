@@ -12,7 +12,7 @@
 | ジョブ基盤 | **未決** — Celery / ARQ / Dramatiq / Taskiq | ADR-0013 で決める（M2 着手前まで） |
 | リアルタイム | **WebSocket**（編集ロック・レビューコメント）／ **SSE**（ジョブ進捗） | 判断基準は「双方向が必要か」だけ → ADR-0006 |
 | フロントエンド | **Next.js 16 / React 19** | |
-| エディタ | **未決** — CodeMirror 6 / tiptap | **自作しない** |
+| エディタ | **CodeMirror 6**（プレビューは react-markdown ＋ remark-gfm） | **自作しない**。ADR-0016 |
 | LLM | **Claude API**（`claude-opus-5`） | 公式 SDK `anthropic`（Python）を使う |
 | MCP | サービス側に MCP サーバーエンドポイントを実装 | 公式 Python SDK `mcp` |
 | インフラ | **AWS** | 構成とコストは未決（ADR-0003） |

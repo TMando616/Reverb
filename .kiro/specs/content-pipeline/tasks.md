@@ -89,9 +89,9 @@
 ## 9. 仕上げ
 
 - [x] 9.1 手動確認（M1 前半の判定）：**ネタを登録 → タグを付ける → カンバンで「執筆中」へ → 書く（自動保存）→ 版を戻す**が通る。別タブで同時に保存して 409 のバナーが出る
-- [ ] 9.2 `requirements.md` の受け入れ条件 C1〜C9 にチェックを入れ、テストとの対応を `acceptance-trace.md` に残す
-- [ ] 9.3 steering / `requirements-overview.md` §13 / CLAUDE.md（コマンドが増えた場合）を更新
-- [ ] 9.4 `/code-review` を実施し、指摘を修正
+- [x] 9.2 `requirements.md` の受け入れ条件 C1〜C9 にチェックを入れ、テストとの対応を `acceptance-trace.md` に残す
+- [x] 9.3 steering / `requirements-overview.md` §13 / CLAUDE.md（コマンドが増えた場合）を更新
+- [x] 9.4 `/code-review` を実施し、指摘を修正
 
 ---
 

@@ -47,4 +47,4 @@
 | [0013](0013-async-jobs-python.md) | Python の非同期ジョブ基盤を選定する | 検討中 |
 | [0014](0014-auth-token-and-bff.md) | 認証トークンの保持場所と API 呼び出し経路（BFF） | **採用** |
 | [0015](0015-frontend-styling-and-data-fetching.md) | フロントのスタイリングとデータフェッチ層 | **採用** |
-| [0016](0016-markdown-editor.md) | Markdown エディタとプレビュー（CodeMirror 6 ＋ react-markdown） | 提案 |
+| [0016](0016-markdown-editor.md) | Markdown エディタとプレビュー（CodeMirror 6 ＋ react-markdown） | **採用** |

@@ -121,8 +121,8 @@ frontend/
 ## 7. 未決事項
 
 - [x] スタイリング → **Tailwind CSS**（ADR-0015）。バージョンごとの設定の作法は `frontend/node_modules/` を見て確定する
-- [x] データフェッチ層 → **M0 では採用しない**（ADR-0015）。採否は `content-pipeline` で、編集ロックのプッシュを
-  キャッシュへ反映する検証と併せて決める。**§2 の3分類を満たせることが条件**
-- [ ] `components/ui/` に使う非スタイル部品（Radix 等）→ M0 の画面作成時（tasks.md §8.4）に決める
-- [ ] Markdown エディタ（CodeMirror 6 / tiptap）→ **自作しない**（tech.md）
+- [x] データフェッチ層 → **編集画面にだけ TanStack Query を採用**（ADR-0015 追記）。カンバンなどプッシュが来ない画面は
+  Server Component ＋ Server Action のまま。編集中バッファはキャッシュに入れない（§2）
+- [x] `components/ui/` に使う非スタイル部品 → **Radix（`radix-ui`）**（content-pipeline design.md §9-10）
+- [x] Markdown エディタ → **CodeMirror 6**（ADR-0016）。自作しない（tech.md）
 - [ ] グラフライブラリ → M2（ダッシュボード着手時）
