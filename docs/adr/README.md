@@ -48,3 +48,4 @@
 | [0014](0014-auth-token-and-bff.md) | 認証トークンの保持場所と API 呼び出し経路（BFF） | **採用** |
 | [0015](0015-frontend-styling-and-data-fetching.md) | フロントのスタイリングとデータフェッチ層 | **採用** |
 | [0016](0016-markdown-editor.md) | Markdown エディタとプレビュー（CodeMirror 6 ＋ react-markdown） | **採用** |
+| [0017](0017-m1-conversion-db-queue.md) | M1 の変換ジョブを DB キューで回す | **採用** |
