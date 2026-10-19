@@ -58,8 +58,8 @@ def tag_name_key(name: str) -> str:
 
 
 # 状態遷移表（design.md §8-1 の確定表）。キーが from、値が遷移してよい to の集合。
-# in_review → published は含めない：公開処理と一体で行うため publishing スペックが
-# この集合に足して解禁する（表を書き換えず集合に足す設計・design.md §8-2）。
+# published へはこの表から遷移させない。足すと公開物なしで「公開済」にできてしまうため、
+# 公開操作の中の mark_published だけが動かす（publishing design.md §4）。
 ALLOWED: dict[ContentStatus, frozenset[ContentStatus]] = {
     ContentStatus.INBOX: frozenset({ContentStatus.ADOPTED, ContentStatus.SHELVED}),
     ContentStatus.ADOPTED: frozenset(

@@ -24,7 +24,8 @@ Reverb/
 │   │   │   ├── models.py      ORM モデル
 │   │   │   ├── schemas.py     Pydantic（リクエスト / レスポンス）
 │   │   │   └── deps.py        Depends の組み立て
-│   │   ├── channels/          チャネルアダプタ（Qiita / X / note / podcast）
+│   │   ├── channels/          チャネルアダプタ（Qiita / X / note / podcast）＝公開先
+│   │   ├── llm/               Claude API の呼び出しとプロンプト（変換の道具。チャネルではない）
 │   │   ├── mcp/               MCP サーバー
 │   │   ├── jobs/              ジョブ定義・ワーカー（→ ADR-0013）
 │   │   └── core/              設定・DB セッション・認証・例外ハンドラ
@@ -53,7 +54,7 @@ Controller → Service → Repository → DB
 
 **下位が上位を参照することは禁止。**
 
-- チャネルアダプタは Service から呼ぶ。Controller から直接呼ばない
+- チャネルアダプタと LLM は Service から呼ぶ。Controller から直接呼ばない。**Service は Protocol（ポート）だけを知り、具体実装は `deps.py` で差し込む**
 - ジョブのプロセッサは Service を呼ぶ。Repository を直接叩かない
 - MCP サーバーは **Service 層を経由する**。専用の抜け道を作らない（認可を二重実装しないため）
 - **Service は Request / Response を知らない**（FastAPI の `Request` を持ち込まない）
@@ -95,8 +96,10 @@ contents                                       受信箱〜公開まで状態遷
     └─ publications                            公開先チャネルごと
           └─ metric_snapshots                  日次・50万行
 
-channels / channel_accounts / ingest_jobs / job_runs
+channel_accounts / conversion_profiles / conversion_jobs / channel_drafts / ingest_jobs / job_runs
 ```
+
+**チャネルの定義はテーブルに置かない。** `app/channels/capabilities.py` のコードが正（publishing design.md §3-2）。
 
 **設計の肝は `contents 1 : n publications`。** 1つのネタが複数チャネルに出せることが、チャネル横断分析の土台になる。
 

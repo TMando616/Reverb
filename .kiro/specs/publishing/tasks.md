@@ -9,8 +9,8 @@
 ## 0. 実装前の整備（`design.md` §17「このスペックで新たに決めたこと」）
 
 - [x] 0.1 ADR-0017「M1 の変換ジョブを DB キューで回す」を書く（BackgroundTasks を使わない理由・`SKIP LOCKED`・止まったジョブの回収・`JobDispatcher` で M2 に載せ替える境界）。ADR-0013 から参照し、`docs/adr/README.md` の索引に足す
-- [ ] 0.2 steering：structure.md に `app/llm/` を足す（`channels/` との違い）。tech.md の依存の表に `anthropic` / `cryptography` を足す
-- [ ] 0.3 `requirements-overview.md` §8 のデータモデルから `channels` テーブルを外し、チャネルはコードに置くことを書く。`contents/service.py` の `ALLOWED` のコメントを「`published` は公開操作の中だけ」に直す
+- [x] 0.2 steering：structure.md に `app/llm/` を足す（`channels/` との違い）。tech.md の依存の表に `anthropic` / `cryptography` を足す
+- [x] 0.3 `requirements-overview.md` §8 のデータモデルから `channels` テーブルを外し、チャネルはコードに置くことを書く。`contents/service.py` の `ALLOWED` のコメントを「`published` は公開操作の中だけ」に直す
 - [ ] 0.4 依存を足す：`anthropic`・`cryptography`、`httpx` を dev から本体へ。`uv lock` → コンテナを作り直して import できることを確認
 - [ ] 0.5 設定：`TOKEN_ENCRYPTION_KEYS` / `CONVERSION_MODEL` / `CONVERSION_EFFORT` / `RUN_CONVERSION_WORKER`。`ENVIRONMENT=production` で鍵が空なら起動時に落とす。`.env.example` と compose に追記（`ANTHROPIC_API_KEY` は SDK に解決させる）
 

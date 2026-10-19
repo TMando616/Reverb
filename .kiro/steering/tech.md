@@ -9,11 +9,13 @@
 | パッケージ管理 | **uv** | ロックファイルをコミットする |
 | DB | **PostgreSQL** | |
 | ORM | **SQLAlchemy 2.0**（async・ORM ＋ Core 併用） | ADR-0002。マイグレーションは Alembic |
-| ジョブ基盤 | **未決** — Celery / ARQ / Dramatiq / Taskiq | ADR-0013 で決める（M2 着手前まで） |
+| ジョブ基盤 | **未決** — Celery / ARQ / Dramatiq / Taskiq | ADR-0013 で決める（M2 着手前まで）。M1 の変換ジョブは基盤なしで DB キュー（ADR-0017） |
 | リアルタイム | **WebSocket**（編集ロック・レビューコメント）／ **SSE**（ジョブ進捗） | 判断基準は「双方向が必要か」だけ → ADR-0006 |
 | フロントエンド | **Next.js 16 / React 19** | |
 | エディタ | **CodeMirror 6**（プレビューは react-markdown ＋ remark-gfm） | **自作しない**。ADR-0016 |
-| LLM | **Claude API**（`claude-opus-5`） | 公式 SDK `anthropic`（Python）を使う |
+| LLM | **Claude API**（`claude-opus-5-5`） | 公式 SDK `anthropic`（Python）を使う。呼び出しは `app/llm/` に閉じる |
+| 外部 HTTP | **httpx**（async） | Qiita API など。チャネルアダプタ（`app/channels/`）から使う |
+| トークン暗号化 | **cryptography**（Fernet / MultiFernet） | 鍵は `TOKEN_ENCRYPTION_KEYS`。`app/core/crypto.py` |
 | MCP | サービス側に MCP サーバーエンドポイントを実装 | 公式 Python SDK `mcp` |
 | インフラ | **AWS** | 構成とコストは未決（ADR-0003） |
 | CI/CD | **GitHub Actions** | lint / test / build → main マージでデプロイ |

@@ -315,19 +315,23 @@ contents（受信箱〜公開まで状態遷移）◄─────────
     ├─ content_tags ── tags   多対多
     ├─ review_comments        行アンカー付き・リアルタイム反映
     ├─ section_locks          誰が今どこを編集中か
+    ├─ conversion_jobs        チャネル変換の実行（キュー兼履歴・ADR-0017）
+    ├─ channel_drafts         チャネル向け原稿（コンテンツ×チャネルで1件）
     │
-    └─ publications（公開先チャネルごと）
-          id, content_id, channel_id, external_id, url, published_at
+    └─ publications（公開先チャネルごと・取消は論理削除）
+          id, content_id, channel, external_id, url, published_at, cancelled_at
             │
             └─ metric_snapshots  ★日次・数十万行
                   publication_id, captured_on, views, likes, stocks, comments
 
-channels                  チャネル定義（publish モード・変換プロファイル）
-channel_accounts          外部サービスのトークン（暗号化）
+conversion_profiles       変換プロファイル（企画×チャネル）
+channel_accounts          外部サービスのトークン（ユーザー×チャネル・暗号化）
 ingest_jobs / job_runs    取得ジョブ・リトライ・エラー履歴
 ```
 
-**14テーブル。設計の肝は `contents 1 : n publications`。**
+**チャネルの定義（publish モード・形式・文字数上限）はテーブルに置かず、コード（`app/channels/capabilities.py`）に置く。** チャネルを足すにはどのみちアダプタのコードが要り、DB に写しを置くとずれるため（publishing design.md §3-2）。
+
+**設計の肝は `contents 1 : n publications`。**
 「Qiita に書いた記事を、後日ポッドキャストでも話した」を1本のネタとして追える。これがチャネル横断分析の土台になる。
 
 ---
