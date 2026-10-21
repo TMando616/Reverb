@@ -56,9 +56,23 @@ def test_production_rejects_the_default_secret_key() -> None:
 
 
 def test_production_accepts_an_overridden_secret_key() -> None:
-    settings = Settings(environment="production", secret_key="something-else")
+    settings = Settings(
+        environment="production", secret_key="something-else", token_encryption_keys="k"
+    )
 
     assert settings.is_production is True
+
+
+def test_production_rejects_missing_token_encryption_keys() -> None:
+    # 鍵が無いとトークンを保存できない。本番で渡し忘れたまま起動させない。
+    with pytest.raises(ValueError, match="TOKEN_ENCRYPTION_KEYS"):
+        Settings(environment="production", secret_key="something-else", token_encryption_keys=" , ")
+
+
+def test_token_encryption_keys_are_split_on_commas() -> None:
+    settings = Settings(token_encryption_keys=" new , old ,")
+
+    assert settings.token_encryption_key_list == ["new", "old"]
 
 
 async def test_an_unexpected_exception_does_not_leak_its_message() -> None:
@@ -112,7 +126,9 @@ def test_docs_are_closed_in_production(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         config,
         "get_settings",
-        lambda: config.Settings(environment="production", secret_key="x" * 32),
+        lambda: config.Settings(
+            environment="production", secret_key="x" * 32, token_encryption_keys="k"
+        ),
     )
     monkeypatch.setattr("app.main.get_settings", config.get_settings)
 

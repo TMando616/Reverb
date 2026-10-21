@@ -22,6 +22,10 @@ services:
       # 結合テスト用の別データベース。無ければ conftest が作る（design.md §13-1）。
       TEST_DATABASE_URL: postgresql+asyncpg://reverb:reverb@db:5432/reverb_test
       SECRET_KEY: change-me-in-local
+      # ローカル専用の Fernet 鍵（リポジトリに入っている既知の値）。本番では必ず別の鍵を渡す。
+      TOKEN_ENCRYPTION_KEYS: POyR7EWLLZDTWyzAhZyCgrqOSYsdqW0qjWUP_aK0YJU=
+      # 変換で Claude API を呼ぶときだけ要る。ホストの環境変数をそのまま渡す（値はリポジトリに書かない）。
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
     ports:
       - "8000:8000"
     volumes:

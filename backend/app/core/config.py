@@ -7,6 +7,7 @@ from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 Environment = Literal["local", "production"]
+Effort = Literal["low", "medium", "high", "xhigh", "max"]
 
 _DEFAULT_SECRET_KEY = "change-me-in-local"
 
@@ -22,6 +23,15 @@ class Settings(BaseSettings):
     # 本番判定フラグ。Secure Cookie の管理は BFF 側の責務（design.md §12-1）。
     # このAPIは内部エラー文の非表示など、本番限定の挙動をこれで判定する。
     environment: Environment = "local"
+    # 外部サービスのトークンを暗号化する Fernet 鍵（カンマ区切り）。先頭で暗号化し、
+    # 全部で復号を試す（鍵の差し替え用・publishing design.md §10-1）。SECRET_KEY とは分ける。
+    token_encryption_keys: str = ""
+    # チャネル変換に使うモデルと effort（publishing design.md §8-1）。
+    # ANTHROPIC_API_KEY はここで受けず、SDK に環境変数から解決させる。
+    conversion_model: str = "claude-opus-5-5"
+    conversion_effort: Effort = "medium"
+    # 変換ジョブのワーカーを lifespan で起動するか（ADR-0017）。テストでは false。
+    run_conversion_worker: bool = True
 
     @property
     def is_production(self) -> bool:
@@ -33,7 +43,13 @@ class Settings(BaseSettings):
         # 黙って起動されるのが一番まずいので、起動時に落とす。
         if self.is_production and self.secret_key == _DEFAULT_SECRET_KEY:
             raise ValueError("SECRET_KEY must be set when ENVIRONMENT=production")
+        if self.is_production and not self.token_encryption_key_list:
+            raise ValueError("TOKEN_ENCRYPTION_KEYS must be set when ENVIRONMENT=production")
         return self
+
+    @property
+    def token_encryption_key_list(self) -> list[str]:
+        return [k.strip() for k in self.token_encryption_keys.split(",") if k.strip()]
 
 
 @lru_cache
