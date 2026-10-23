@@ -20,6 +20,7 @@ from app.modules.auth.models import User
 from app.modules.auth.repository import UserRepository
 from app.modules.contents import models as _contents_models  # noqa: F401
 from app.modules.projects import models as _projects_models  # noqa: F401
+from app.modules.publishing import models as _publishing_models  # noqa: F401
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
