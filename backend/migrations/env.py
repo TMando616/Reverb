@@ -11,6 +11,7 @@ from app.core.db import Base
 from app.modules.auth import models as _auth_models  # noqa: F401
 from app.modules.contents import models as _contents_models  # noqa: F401
 from app.modules.projects import models as _projects_models  # noqa: F401
+from app.modules.publishing import models as _publishing_models  # noqa: F401
 from sqlalchemy import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 from sqlalchemy.pool import NullPool
