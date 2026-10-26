@@ -9,6 +9,7 @@ containers =
     app.modules.auth
     app.modules.projects
     app.modules.contents
+    app.modules.publishing
 layers =
     router
     service
@@ -21,6 +22,7 @@ source_modules =
     app.modules.auth.service
     app.modules.projects.service
     app.modules.contents.service
+    app.modules.publishing.service
 forbidden_modules =
     sqlalchemy
     app.core.db
@@ -33,6 +35,7 @@ source_modules =
     app.modules.auth.service
     app.modules.projects.service
     app.modules.contents.service
+    app.modules.publishing.service
 forbidden_modules =
     fastapi
     starlette
@@ -44,3 +47,26 @@ source_modules =
     app.core
 forbidden_modules =
     app.modules
+
+[importlinter:contract:publishing-service-ports-only]
+name = publishing の Service は外部 API の具体実装を知らない（ポートだけを知る）
+type = forbidden
+source_modules =
+    app.modules.publishing.service
+forbidden_modules =
+    app.channels.qiita
+    app.llm
+    anthropic
+    httpx
+
+[importlinter:contract:jobs-call-services]
+name = ジョブは Service を呼ぶ。Repository を直接叩かない
+type = forbidden
+source_modules =
+    app.jobs
+forbidden_modules =
+    app.modules.auth.repository
+    app.modules.projects.repository
+    app.modules.contents.repository
+    app.modules.publishing.repository
+allow_indirect_imports = True

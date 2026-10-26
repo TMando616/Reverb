@@ -51,7 +51,7 @@ backend/app/
 
 - `layers` の containers に `app.modules.publishing` を足す
 - `service-no-sqlalchemy` / `service-no-fastapi` の source に `app.modules.publishing.service` を足す
-- **新しい契約**：`app.modules.publishing.service` は `app.channels` / `app.llm` / `anthropic` / `httpx` を import しない（ポートだけを知る）
+- **新しい契約**：`app.modules.publishing.service` は `app.channels.qiita` / `app.llm` / `anthropic` / `httpx` を import しない（ポートだけを知る）。`app.channels.capabilities` は振る舞いを持たない定義なので import してよい（§6 の分岐で使う）
 - **新しい契約**：`app.jobs` は `*.repository` を import しない（structure.md「ジョブは Service を呼ぶ」）。組み立ては `deps` の関数を使う
 
 ---

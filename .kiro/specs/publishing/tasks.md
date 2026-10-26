@@ -20,7 +20,7 @@
 - [x] 1.2 `publishing/models.py`：`ConversionProfile` / `ConversionJob` / `ChannelDraft` / `ChannelAccount` / `Publication`。チャネルは `text` ＋ CHECK、`ChannelDraft.version` は `version_id_col`（`design.md` §3）
 - [x] 1.3 マイグレーション生成 → **部分 UNIQUE 3本（jobs の待機・実行中 / publications の未取消×2）と複合 FK を目視** → `upgrade head` / `downgrade -1` / `upgrade head` が通る
 - [x] 1.4 DB 制約のテスト：待機中ジョブの二重 INSERT と未取消公開物の二重 INSERT が IntegrityError、取消済みなら同じ組でも入る、他企画のコンテンツを参照すると IntegrityError
-- [ ] 1.5 `.importlinter`：containers と service 系の契約に `publishing` を足す。新しい契約2本（publishing.service は `app.channels` / `app.llm` / `anthropic` / `httpx` を import しない、`app.jobs` は `*.repository` を import しない）
+- [x] 1.5 `.importlinter`：containers と service 系の契約に `publishing` を足す。新しい契約2本（publishing.service は `app.channels.qiita` / `app.llm` / `anthropic` / `httpx` を import しない、`app.jobs` は `*.repository` を import しない）
 
 ## 2. 認可・状態遷移の変更（C8 / `design.md` §4・§5）
 
