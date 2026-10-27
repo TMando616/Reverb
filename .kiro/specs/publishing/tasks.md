@@ -31,7 +31,7 @@
 ## 3. Qiita トークン（C5）
 
 - [x] 3.1 `core/crypto.py`：`TokenCipher`（`MultiFernet`・先頭の鍵で暗号化・古い鍵の暗号文を検出して暗号化し直せる）。`TokenUnavailableError` のメッセージに値を含めない
-- [ ] 3.2 `channels/qiita.py`：`QiitaClient`（`httpx.AsyncClient`・15秒・再試行なし）の `authenticated_user` / `create_item` / `update_item`。ステータス → 例外の対応（`design.md` §10-5）
+- [x] 3.2 `channels/qiita.py`：`QiitaClient`（`httpx.AsyncClient`・15秒・再試行なし）の `authenticated_user` / `create_item` / `update_item`。ステータス → 例外の対応（`design.md` §10-5）
 - [ ] 3.3 `AccountService`（`get` / `register` / `delete`・常に `actor.user_id`・demo 403）と `ChannelAccountRepository`。登録時に `authenticated_user` で確かめ、401 / 403 は 422 `invalid_qiita_token`
 - [ ] 3.4 ルーター：`GET/PUT/DELETE /me/accounts/qiita`（トークンを返さない）。`core/exceptions.py` に publishing のエラーコードを足し、ハンドラに登録（`design.md` §12）
 - [ ] 3.5 ユニットテスト：暗号の往復 ／鍵の差し替え ／改ざんで失敗 ／`QiitaClient` を `httpx.MockTransport` でステータスごと・POST を再試行しない ／登録・差し替え・削除 ／demo 403 ／**`caplog` にトークンが出ない**
