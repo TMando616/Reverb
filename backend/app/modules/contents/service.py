@@ -73,6 +73,12 @@ ALLOWED: dict[ContentStatus, frozenset[ContentStatus]] = {
     ContentStatus.SHELVED: frozenset({ContentStatus.INBOX}),
 }
 
+# 公開操作（mark_published）で公開済にしてよい状態（publishing design.md §4）。
+# published を含むのは、2つ目のチャネルへの公開・更新で状態を変えないため。
+PUBLISHABLE_FROM: frozenset[ContentStatus] = frozenset(
+    {ContentStatus.DRAFTING, ContentStatus.IN_REVIEW, ContentStatus.PUBLISHED}
+)
+
 
 class ContentService:
     def __init__(
@@ -274,15 +280,65 @@ class ContentService:
         current = ContentStatus(content.status)
         if to not in ALLOWED[current]:
             raise InvalidStateTransitionError(f"cannot transition from {current} to {to}")
+        await self._move(content, current, to, actor)
+        return content
+
+    # --- publishing から ContentGateway ポート越しに呼ばれる（publishing design.md §2・§4） ---
+
+    async def lock_for_publish(self, actor: Actor, project_id: int, content_id: int) -> Content:
+        """公開操作の入口。コンテンツ行を ``FOR UPDATE`` で押さえて返す。
+
+        同じコンテンツへの公開を直列化し、2つ目のリクエストは1つ目の commit を待ってから
+        「公開物がもうある」を見る（publishing design.md §10-3）。
+        """
+        await self._authz.require(actor, project_id, Permission.CONTENT_PUBLISH)
+        content = await self._contents.get_for_update(content_id, project_id)
+        if content is None:
+            raise NotFoundError("content")
+        return content
+
+    @staticmethod
+    def ensure_publishable(content: Content) -> None:
+        """外部に送る前に呼ぶ。送ってから状態で弾くと、記事だけが外に残るため。"""
+        if ContentStatus(content.status) not in PUBLISHABLE_FROM:
+            raise InvalidStateTransitionError(f"cannot publish from {content.status}")
+
+    async def mark_published(self, actor: Actor, content: Content) -> None:
+        """公開物を作ったのと同じトランザクションで公開済にする。
+
+        汎用の遷移表（``ALLOWED``）には published を足さない。足すと公開物なしで
+        公開済にできてしまう。すでに公開済なら何もしない（遷移ログも書かない）。
+        """
+        await self._authz.require(actor, content.project_id, Permission.CONTENT_PUBLISH)
+        self.ensure_publishable(content)
+        current = ContentStatus(content.status)
+        if current is ContentStatus.PUBLISHED:
+            return
+        await self._move(content, current, ContentStatus.PUBLISHED, actor)
+
+    async def mark_unpublished(self, actor: Actor, content: Content) -> None:
+        """取り消されていない公開物が0件になったときに執筆中へ戻す（publishing design.md §4）。"""
+        await self._authz.require(actor, content.project_id, Permission.CONTENT_PUBLISH)
+        current = ContentStatus(content.status)
+        if current is not ContentStatus.PUBLISHED:
+            return
+        await self._move(content, current, ContentStatus.DRAFTING, actor)
+
+    async def latest_revision_no(self, content: Content) -> int:
+        """変換元・原稿の新旧の判定に使う（publishing design.md §3-2）。
+
+        ``content`` は認可を通した取得（``get`` / ``lock_for_publish``）で得たものを渡す。
+        """
+        return await self._revisions.latest_no(content.id)
+
+    async def _move(
+        self, content: Content, current: ContentStatus, to: ContentStatus, actor: Actor
+    ) -> None:
         content.status = to.value
         await self._contents.flush()
         await self._transitions.add(
-            content_id=content.id,
-            from_status=current,
-            to_status=to,
-            actor_user_id=actor.user_id,
+            content_id=content.id, from_status=current, to_status=to, actor_user_id=actor.user_id
         )
-        return content
 
     async def _validated_tag_ids(self, project_id: int, tag_ids: Iterable[int]) -> set[int]:
         """全部この企画のタグで、上限以内なら集合にして返す。そうでなければ 422。"""

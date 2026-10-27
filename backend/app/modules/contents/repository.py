@@ -87,6 +87,22 @@ class ContentRepository:
         )
         return result.scalar_one_or_none()
 
+    async def get_for_update(self, content_id: int, project_id: int) -> Content | None:
+        """``SELECT ... FOR UPDATE`` で行を押さえる。同じコンテンツの公開操作を直列化する
+        （publishing design.md §10-3）。ロックは commit / rollback まで続く。
+        """
+        result = await self._session.execute(
+            select(Content)
+            .where(
+                Content.id == content_id,
+                Content.project_id == project_id,
+                Content.deleted_at.is_(None),
+            )
+            .with_for_update(of=Content)
+            .options(selectinload(Content.tags))
+        )
+        return result.scalar_one_or_none()
+
     async def list(
         self,
         project_id: int,
@@ -365,6 +381,17 @@ class RevisionRepository:
             stmt.order_by(ContentRevision.revision_no.desc()).limit(limit)
         )
         return [RevisionSummary(*row) for row in result.tuples()]
+
+    async def latest_no(self, content_id: int) -> int:
+        """最新の版番号。作成時に初版を作るので、生きているコンテンツなら 1 以上。"""
+        return (
+            await self._session.scalar(
+                select(func.coalesce(func.max(ContentRevision.revision_no), 0)).where(
+                    ContentRevision.content_id == content_id
+                )
+            )
+            or 0
+        )
 
     async def get(self, content_id: int, revision_no: int) -> ContentRevision | None:
         result = await self._session.execute(

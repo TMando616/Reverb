@@ -36,7 +36,7 @@ class Permission(StrEnum):
     CONTENT_VIEW = "content:view"
     CONTENT_WRITE = "content:write"  # 作成・更新・削除
     CONTENT_TRANSITION = "content:transition"  # 状態遷移
-    # 外部への公開・更新・公開取消。owner のみ（editor・reviewer には足さない・publishing design.md §5）
+    # 外部への公開・更新・公開取消。owner のみ（publishing design.md §5）
     CONTENT_PUBLISH = "content:publish"
 
 

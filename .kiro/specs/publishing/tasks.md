@@ -25,8 +25,8 @@
 ## 2. 認可・状態遷移の変更（C8 / `design.md` §4・§5）
 
 - [x] 2.1 `Permission.CONTENT_PUBLISH` を足す（owner のみ・demo は落ちる）。既存の権限テストに editor / reviewer / demo の否定を足す
-- [ ] 2.2 `ContentService.lock_for_publish`（`SELECT ... FOR UPDATE`）/ `mark_published`（`PUBLISHABLE_FROM` 以外は 422・`published → published` はログなし）/ `mark_unpublished`（`published → drafting`・遷移ログ）
-- [ ] 2.3 ユニットテスト：汎用の遷移 API で `to=published` が 422 のまま ／`受信箱` から `mark_published` で 422 ／`mark_unpublished` でログが1件
+- [x] 2.2 `ContentService.lock_for_publish`（`SELECT ... FOR UPDATE`）/ `mark_published`（`PUBLISHABLE_FROM` 以外は 422・`published → published` はログなし）/ `mark_unpublished`（`published → drafting`・遷移ログ）
+- [x] 2.3 ユニットテスト：汎用の遷移 API で `to=published` が 422 のまま ／`受信箱` から `mark_published` で 422 ／`mark_unpublished` でログが1件
 
 ## 3. Qiita トークン（C5）
 
