@@ -32,13 +32,13 @@
 
 - [x] 3.1 `core/crypto.py`：`TokenCipher`（`MultiFernet`・先頭の鍵で暗号化・古い鍵の暗号文を検出して暗号化し直せる）。`TokenUnavailableError` のメッセージに値を含めない
 - [x] 3.2 `channels/qiita.py`：`QiitaClient`（`httpx.AsyncClient`・15秒・再試行なし）の `authenticated_user` / `create_item` / `update_item`。ステータス → 例外の対応（`design.md` §10-5）
-- [ ] 3.3 `AccountService`（`get` / `register` / `delete`・常に `actor.user_id`・demo 403）と `ChannelAccountRepository`。登録時に `authenticated_user` で確かめ、401 / 403 は 422 `invalid_qiita_token`
-- [ ] 3.4 ルーター：`GET/PUT/DELETE /me/accounts/qiita`（トークンを返さない）。`core/exceptions.py` に publishing のエラーコードを足し、ハンドラに登録（`design.md` §12）
-- [ ] 3.5 ユニットテスト：暗号の往復 ／鍵の差し替え ／改ざんで失敗 ／`QiitaClient` を `httpx.MockTransport` でステータスごと・POST を再試行しない ／登録・差し替え・削除 ／demo 403 ／**`caplog` にトークンが出ない**
+- [x] 3.3 `AccountService`（`get` / `register` / `delete`・常に `actor.user_id`・demo 403）と `ChannelAccountRepository`。登録時に `authenticated_user` で確かめ、401 / 403 は 422 `invalid_qiita_token`
+- [x] 3.4 ルーター：`GET/PUT/DELETE /me/accounts/qiita`（トークンを返さない）。`core/exceptions.py` に publishing のエラーコードを足し、ハンドラに登録（`design.md` §12）
+- [x] 3.5 ユニットテスト：暗号の往復 ／鍵の差し替え ／改ざんで失敗 ／`QiitaClient` を `httpx.MockTransport` でステータスごと・POST を再試行しない ／登録・差し替え・削除 ／demo 403 ／**`caplog` にトークンが出ない**
 
 ## 4. 変換（C2 / C3）
 
-- [ ] 4.1 `service.py` にポートを置く：`Converter` / `ConversionInput` / `ConversionOutput` / `ConversionFailed`、`JobDispatcher`（M1 は何もしない実装）、`ContentGateway`
+- [ ] 4.1 `ports.py` にポートを置く：`Converter` / `ConversionInput` / `ConversionOutput` / `ConversionFailed`、`JobDispatcher`（M1 は何もしない実装）、`ContentGateway`
 - [ ] 4.2 `llm/prompts.py`：Qiita の `DEFAULT_PROFILES`（グローバル CLAUDE.md §5 の Qiita の節を移植・禁則フレーズは配列）と system / user の組み立て（`design.md` §8-2）
 - [ ] 4.3 **`/claude-api` スキルを読み直してから** `llm/converter.py`：`AsyncAnthropic`・`messages.stream` ＋ `get_final_message`・effort medium・structured outputs `{title, body, tags}`・`max_tokens` 64000・timeout 600秒・`fallbacks: "default"`。例外と `stop_reason` を `error_code` に（§8-3）。`usage` と `request_id` を返す
 - [ ] 4.4 `ConversionService.request`（WRITE・プロファイルが無ければ既定値から作る・`profile_snapshot` と `source_revision_no` を写す・部分 UNIQUE 違反は 409 `conversion_in_progress`）

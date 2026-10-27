@@ -21,6 +21,7 @@ from app.modules.auth.repository import UserRepository
 from app.modules.contents import models as _contents_models  # noqa: F401
 from app.modules.projects import models as _projects_models  # noqa: F401
 from app.modules.publishing import models as _publishing_models  # noqa: F401
+from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
@@ -91,11 +92,16 @@ async def db_session() -> AsyncIterator[AsyncSession]:
 
 
 @pytest.fixture
-async def client(db_session: AsyncSession) -> AsyncIterator[AsyncClient]:
+def app() -> FastAPI:
+    """テストごとのアプリ。外部 API のポートは ``app.dependency_overrides`` で差し替える。"""
+    return create_app()
+
+
+@pytest.fixture
+async def client(db_session: AsyncSession, app: FastAPI) -> AsyncIterator[AsyncClient]:
     """DB につながっていないクライアント（配線確認用）ではなく、テスト用セッション
     を注入したクライアント。``get_session`` の commit 境界は本番と同じにしておく。
     """
-    app = create_app()
 
     async def _override() -> AsyncIterator[AsyncSession]:
         try:

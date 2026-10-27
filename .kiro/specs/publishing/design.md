@@ -23,7 +23,8 @@ backend/app/
 ├── modules/publishing/          ★新規
 │   ├── models.py        ConversionProfile / ConversionJob / ChannelDraft / ChannelAccount / Publication
 │   ├── repository.py
-│   ├── service.py       ConversionService / DraftService / AccountService / PublicationService ＋ ポート（Protocol）
+│   ├── service.py       ConversionService / DraftService / AccountService / PublicationService
+│   ├── ports.py         ポート（Protocol）と入出力の型・失敗の型。Service と具体実装の両方がここを import する
 │   ├── schemas.py
 │   ├── router.py
 │   └── deps.py          ポートに具体実装（Claude・Qiita・暗号化）を差し込む
@@ -144,7 +145,7 @@ foundation の遷移表（`ALLOWED`）には **`published` を遷移先として
 | Qiita への投稿・更新、貼り戻し（M3）、公開取消 | **`CONTENT_PUBLISH`** |
 | プロファイルの編集（M3・任意） | `PROJECT_MANAGE_MEMBERS` に相乗りせず、**`CONTENT_PUBLISH` を使う**（owner のみ。プロファイルは公開物の体裁を決めるので公開と同じ重さ） |
 
-**ユーザー単位の操作（`AccountService`）は企画の認可を通らない。** 対象は常に `actor.user_id` の行で、他人の行を指定する API を作らない。`actor.is_demo` なら 403。
+**ユーザー単位の操作（`AccountService`）は企画の認可を通らない。** 対象は常に `actor.user_id` の行で、他人の行を指定する API を作らない。`actor.is_demo` なら登録・削除は 403（閲覧は自分の「未登録」が見えるだけなので通す）。
 
 公開時に使うトークンは **公開操作をした owner 本人のもの**。企画に owner が複数いても、他人のトークンで投稿しない。
 
@@ -292,7 +293,7 @@ class Converter(Protocol):
     # 失敗は ConversionFailed(error_code, message, request_id) を投げる
 ```
 
-`ConversionInput` / `ConversionOutput` は `service.py` に置く dataclass。`llm/converter.py` がこれを実装し、テストは `FakeConverter`（成功・各失敗・遅延を設定できる）を使う。
+`ConversionInput` / `ConversionOutput` は `ports.py` に置く dataclass。`llm/converter.py` がこれを実装し、テストは `FakeConverter`（成功・各失敗・遅延を設定できる）を使う。
 
 ---
 

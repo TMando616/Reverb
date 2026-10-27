@@ -91,3 +91,100 @@ class InvalidTagError(AppError):
 
     def __init__(self, message: str = "invalid tag") -> None:
         super().__init__(message)
+
+
+# --- publishing（publishing design.md §12）。409 の意味が増えるので画面は code で分岐する ---
+
+
+class ConversionInProgressError(AppError):
+    """同じコンテンツ×チャネルで変換が待機中・実行中（部分 UNIQUE・C3）。"""
+
+    status = 409
+    code = "conversion_in_progress"
+
+    def __init__(self, message: str = "a conversion is already in progress") -> None:
+        super().__init__(message)
+
+
+class PublicationExistsError(AppError):
+    """取り消されていない公開物がすでにある。新規投稿ではなく更新を使う。"""
+
+    status = 409
+    code = "publication_exists"
+
+    def __init__(self, message: str = "already published to this channel") -> None:
+        super().__init__(message)
+
+
+class QiitaTokenMissingError(AppError):
+    status = 409
+    code = "qiita_token_missing"
+
+    def __init__(self, message: str = "qiita access token is not registered") -> None:
+        super().__init__(message)
+
+
+class QiitaTokenInvalidError(AppError):
+    """登録済みのトークンが無効・権限不足（write_qiita）・復号できない。再登録へ誘導する。"""
+
+    status = 409
+    code = "qiita_token_invalid"
+
+    def __init__(self, message: str = "qiita access token is invalid or lacks write_qiita") -> None:
+        super().__init__(message)
+
+
+class QiitaItemMissingError(AppError):
+    """更新しようとした記事が Qiita 側で消えている。公開取消を案内する。"""
+
+    status = 409
+    code = "qiita_item_missing"
+
+    def __init__(self, message: str = "the item no longer exists on qiita") -> None:
+        super().__init__(message)
+
+
+class InvalidQiitaTokenError(AppError):
+    """登録しようとしたトークンを Qiita が受け付けなかった。"""
+
+    status = 422
+    code = "invalid_qiita_token"
+
+    def __init__(self, message: str = "qiita rejected the access token") -> None:
+        super().__init__(message)
+
+
+class InvalidDraftError(AppError):
+    """原稿がチャネルの制約（Qiita のタグ数・タイトル等）を満たさない。"""
+
+    status = 422
+    code = "invalid_draft"
+
+    def __init__(self, message: str = "the draft does not satisfy the channel's rules") -> None:
+        super().__init__(message)
+
+
+class QiitaRejectedPublishError(AppError):
+    """Qiita が投稿・更新を拒否した。message は Qiita の文言（トークンは含まない）。"""
+
+    status = 422
+    code = "qiita_rejected"
+
+    def __init__(self, message: str = "qiita rejected the item") -> None:
+        super().__init__(message)
+
+
+class QiitaUnavailableAppError(AppError):
+    status = 502
+    code = "qiita_unavailable"
+
+    def __init__(self, message: str = "qiita is unavailable") -> None:
+        super().__init__(message)
+
+
+class QiitaRateLimitedAppError(AppError):
+    status = 503
+    code = "qiita_rate_limited"
+
+    def __init__(self, message: str = "qiita rate limit exceeded") -> None:
+        super().__init__(message)

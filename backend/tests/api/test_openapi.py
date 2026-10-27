@@ -34,6 +34,10 @@ EXPECTED_OPERATIONS = {
     ("/projects/{project_id}/tags", "post"),
     ("/projects/{project_id}/tags/{tag_id}", "patch"),
     ("/projects/{project_id}/tags/{tag_id}", "delete"),
+    # publishing
+    ("/me/accounts/qiita", "get"),
+    ("/me/accounts/qiita", "put"),
+    ("/me/accounts/qiita", "delete"),
 }
 
 
