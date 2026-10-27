@@ -55,6 +55,23 @@ async def test_demo_is_clamped_to_view_only_intersection() -> None:
         await authz.require(demo, 10, Permission.PROJECT_MANAGE_MEMBERS)
 
 
+@pytest.mark.parametrize(
+    ("role", "is_demo", "allowed"),
+    [
+        (Role.OWNER, False, True),
+        (Role.EDITOR, False, False),
+        (Role.REVIEWER, False, False),
+        (Role.OWNER, True, False),
+    ],
+)
+async def test_only_a_real_owner_can_publish(role: Role, is_demo: bool, allowed: bool) -> None:
+    # 公開は外に出る操作なので owner だけ（publishing design.md §5）。
+    authz = _authorizer({(1, 10): role})
+    actor = Actor(user_id=1, is_demo=is_demo)
+
+    assert await authz.allows(actor, 10, Permission.CONTENT_PUBLISH) is allowed
+
+
 def test_require_not_demo_blocks_demo() -> None:
     with pytest.raises(ForbiddenError):
         require_not_demo(Actor(user_id=1, is_demo=True))
