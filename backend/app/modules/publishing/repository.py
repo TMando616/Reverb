@@ -22,6 +22,7 @@ from app.modules.publishing.models import (
     ConversionJob,
     ConversionProfile,
     JobStatus,
+    Publication,
 )
 from app.modules.publishing.ports import ProfileSnapshot
 
@@ -267,3 +268,19 @@ class ChannelDraftRepository:
     async def flush(self) -> None:
         """保留中の変更を flush する（楽観ロックの競合は 409）。"""
         await _flush_mapping_conflicts(self._session)
+
+
+class PublicationRepository:
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def get_active(self, content_id: int, channel: ChannelCode) -> Publication | None:
+        """取り消されていない公開物（コンテンツ×チャネルで高々1件・部分 UNIQUE）。"""
+        result = await self._session.scalars(
+            select(Publication).where(
+                Publication.content_id == content_id,
+                Publication.channel == channel.value,
+                Publication.cancelled_at.is_(None),
+            )
+        )
+        return result.one_or_none()

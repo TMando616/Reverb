@@ -10,8 +10,12 @@ from fastapi import APIRouter, Depends, status
 from app.channels.capabilities import CAPABILITIES, ChannelCode
 from app.modules.auth.deps import CurrentActor
 from app.modules.publishing import schemas
-from app.modules.publishing.deps import get_account_service, get_conversion_service
-from app.modules.publishing.service import AccountService, ConversionService
+from app.modules.publishing.deps import (
+    get_account_service,
+    get_conversion_service,
+    get_draft_service,
+)
+from app.modules.publishing.service import AccountService, ConversionService, DraftService
 
 # 企画の外（ユーザー単位）なので /projects の下に置かない（design.md §6）。
 accounts_router = APIRouter(prefix="/me/accounts", tags=["accounts"])
@@ -23,6 +27,7 @@ content_channels_router = APIRouter(
 
 AccountServiceDep = Annotated[AccountService, Depends(get_account_service)]
 ConversionServiceDep = Annotated[ConversionService, Depends(get_conversion_service)]
+DraftServiceDep = Annotated[DraftService, Depends(get_draft_service)]
 
 
 @channels_router.get("", response_model=list[schemas.ChannelOut])
@@ -98,3 +103,59 @@ async def register_qiita_account(
 @accounts_router.delete("/qiita", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_qiita_account(actor: CurrentActor, service: AccountServiceDep) -> None:
     await service.delete_qiita(actor)
+
+
+@content_channels_router.get("/channels/{channel}", response_model=schemas.ChannelViewOut)
+async def get_channel_view(
+    project_id: int,
+    content_id: int,
+    channel: ChannelCode,
+    actor: CurrentActor,
+    service: DraftServiceDep,
+) -> schemas.ChannelViewOut:
+    view = await service.view(actor, project_id, content_id, channel)
+    return schemas.ChannelViewOut.from_view(view)
+
+
+@content_channels_router.put("/channels/{channel}/draft", response_model=schemas.ChannelDraftOut)
+async def save_draft(
+    project_id: int,
+    content_id: int,
+    channel: ChannelCode,
+    body: schemas.DraftSaveRequest,
+    actor: CurrentActor,
+    service: DraftServiceDep,
+) -> schemas.ChannelDraftOut:
+    draft = await service.save(
+        actor,
+        project_id,
+        content_id,
+        channel,
+        title=body.title,
+        body=body.body,
+        tags=list(dict.fromkeys(body.tags)),
+        expected_version=body.expected_version,
+    )
+    return schemas.ChannelDraftOut.from_draft(draft)
+
+
+@content_channels_router.post(
+    "/channels/{channel}/draft/apply", response_model=schemas.ChannelDraftOut
+)
+async def apply_pending_conversion(
+    project_id: int,
+    content_id: int,
+    channel: ChannelCode,
+    body: schemas.DraftApplyRequest,
+    actor: CurrentActor,
+    service: DraftServiceDep,
+) -> schemas.ChannelDraftOut:
+    draft = await service.apply_pending(
+        actor,
+        project_id,
+        content_id,
+        channel,
+        job_id=body.job_id,
+        expected_version=body.expected_version,
+    )
+    return schemas.ChannelDraftOut.from_draft(draft)

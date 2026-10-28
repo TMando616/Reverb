@@ -8,8 +8,10 @@ from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from dataclasses import dataclass
 
 import pytest
+from app.channels.capabilities import ChannelCode
 from app.core.authorization import Actor, ProjectAuthorizer
 from app.core.crypto import TokenCipher
+from app.jobs.worker import run_once
 from app.modules.contents.models import Content
 from app.modules.contents.service import ContentService
 from app.modules.projects.repository import ProjectMemberRepository
@@ -19,8 +21,9 @@ from app.modules.publishing.repository import (
     ChannelDraftRepository,
     ConversionJobRepository,
     ConversionProfileRepository,
+    PublicationRepository,
 )
-from app.modules.publishing.service import AccountService, ConversionService
+from app.modules.publishing.service import AccountService, ConversionService, DraftService
 from cryptography.fernet import Fernet
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -67,6 +70,7 @@ async def accounts(db_session: AsyncSession) -> Accounts:
 class Publishing:
     world: World
     conversions: ConversionService
+    drafts: DraftService
     converter: FakeConverter
     session: AsyncSession
 
@@ -78,6 +82,13 @@ class Publishing:
         return await self.contents.create(
             self.world.owner, self.world.project, title=title, body_md=body
         )
+
+    async def converted(self, content: Content) -> None:
+        """変換を1回依頼し、ワーカーを1周回して原稿を作る。"""
+        await self.conversions.request(
+            self.world.owner, self.world.project, content.id, ChannelCode.QIITA
+        )
+        await run_once(self.sessions(), self.converter, build=lambda _s: self.conversions)
 
     def sessions(self) -> Callable[[], AbstractAsyncContextManager[AsyncSession]]:
         """ワーカーの ``run_once`` に渡すセッション工場。テストの外側トランザクションに乗せる
@@ -104,6 +115,13 @@ async def publishing(world: World, db_session: AsyncSession) -> Publishing:  # n
             drafts=ChannelDraftRepository(db_session),
             dispatcher=NoopDispatcher(),
             model="claude-opus-5-5",
+        ),
+        drafts=DraftService(
+            contents=world.contents,
+            authz=authz,
+            drafts=ChannelDraftRepository(db_session),
+            jobs=ConversionJobRepository(db_session),
+            publications=PublicationRepository(db_session),
         ),
         converter=FakeConverter(),
         session=db_session,

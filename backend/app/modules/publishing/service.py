@@ -24,8 +24,15 @@ from app.core.exceptions import (
     QiitaTokenMissingError,
     QiitaUnavailableAppError,
     UnsupportedChannelError,
+    VersionConflictError,
 )
-from app.modules.publishing.models import ChannelAccount, ChannelDraft, ConversionJob, JobStatus
+from app.modules.publishing.models import (
+    ChannelAccount,
+    ChannelDraft,
+    ConversionJob,
+    JobStatus,
+    Publication,
+)
 from app.modules.publishing.ports import (
     ContentGateway,
     ConversionFailed,
@@ -47,6 +54,7 @@ from app.modules.publishing.repository import (
     ChannelDraftRepository,
     ConversionJobRepository,
     ConversionProfileRepository,
+    PublicationRepository,
 )
 
 logger = logging.getLogger("app.publishing")
@@ -320,3 +328,126 @@ class ConversionService:
         else:
             _apply_job(draft, job)
         await self._drafts.flush()
+
+
+@dataclass(frozen=True, slots=True)
+class ChannelView:
+    """公開画面の1回分（design.md §6）。ジョブの状態を取り直すときも1リクエストで済ませる。"""
+
+    channel: ChannelCode
+    draft: ChannelDraft | None
+    latest_job: ConversionJob | None
+    pending_job: ConversionJob | None
+    publication: Publication | None
+    latest_revision_no: int
+
+    @property
+    def draft_is_stale(self) -> bool:
+        """変換後に本文が更新された（design.md §9-3）。公開は止めない（警告のみ）。"""
+        return self.draft is not None and self.draft.source_revision_no < self.latest_revision_no
+
+
+class DraftService:
+    """チャネル原稿の編集と、保留中の変換結果の採用（C4・design.md §9）。
+
+    原稿の保存はリビジョンを作らない（原稿は作業台。履歴は変換ジョブの結果に残る）。
+    """
+
+    def __init__(
+        self,
+        *,
+        contents: ContentGateway,
+        authz: ProjectAuthorizer,
+        drafts: ChannelDraftRepository,
+        jobs: ConversionJobRepository,
+        publications: PublicationRepository,
+    ) -> None:
+        self._contents = contents
+        self._authz = authz
+        self._drafts = drafts
+        self._jobs = jobs
+        self._publications = publications
+
+    async def view(
+        self, actor: Actor, project_id: int, content_id: int, channel: ChannelCode
+    ) -> ChannelView:
+        content = await self._contents.get(actor, project_id, content_id)
+        draft = await self._drafts.get(content.id, channel)
+        pending = None
+        if draft is not None and draft.pending_job_id is not None:
+            pending = await self._jobs.get_for_content(draft.pending_job_id, content.id)
+        return ChannelView(
+            channel=channel,
+            draft=draft,
+            latest_job=await self._jobs.latest_for(content.id, channel),
+            pending_job=pending,
+            publication=await self._publications.get_active(content.id, channel),
+            latest_revision_no=await self._contents.latest_revision_no(content),
+        )
+
+    async def save(
+        self,
+        actor: Actor,
+        project_id: int,
+        content_id: int,
+        channel: ChannelCode,
+        *,
+        title: str,
+        body: str,
+        tags: list[str],
+        expected_version: int,
+    ) -> ChannelDraft:
+        """手で直した原稿を保存する。以後の再変換は、この原稿を置き換えず保留にする。"""
+        await self._authz.require(actor, project_id, Permission.CONTENT_WRITE)
+        draft = await self._draft_for_update(actor, project_id, content_id, channel)
+        _check_version(draft.version, expected_version)
+        draft.title = title
+        draft.body = body
+        draft.extra = {**draft.extra, "tags": tags}
+        draft.edited_after_apply = True
+        draft.updated_by = actor.user_id
+        await self._drafts.flush()
+        return draft
+
+    async def apply_pending(
+        self,
+        actor: Actor,
+        project_id: int,
+        content_id: int,
+        channel: ChannelCode,
+        *,
+        job_id: int,
+        expected_version: int,
+    ) -> ChannelDraft:
+        """保留中の変換結果で原稿を置き換える（design.md §9-2）。
+
+        画面が見ていた保留中の結果（``job_id``）と今の保留中が違えば 409。
+        その間に別の再変換が終わって、別の結果を見せずに置き換えるのを防ぐ。
+        """
+        await self._authz.require(actor, project_id, Permission.CONTENT_WRITE)
+        draft = await self._draft_for_update(actor, project_id, content_id, channel)
+        _check_version(draft.version, expected_version)
+        if draft.pending_job_id != job_id:
+            raise VersionConflictError("the pending conversion result has changed")
+        job = await self._jobs.get_for_content(job_id, draft.content_id)
+        if job is None or job.status != JobStatus.SUCCEEDED.value:
+            raise VersionConflictError("the pending conversion result has changed")
+        _apply_job(draft, job)
+        draft.updated_by = actor.user_id
+        await self._drafts.flush()
+        return draft
+
+    async def _draft_for_update(
+        self, actor: Actor, project_id: int, content_id: int, channel: ChannelCode
+    ) -> ChannelDraft:
+        content = await self._contents.get(actor, project_id, content_id)
+        draft = await self._drafts.get(content.id, channel)
+        if draft is None:
+            # 原稿は変換から作る。変換していないチャネルの原稿は無い。
+            raise NotFoundError("draft")
+        return draft
+
+
+def _check_version(current: int, expected: int) -> None:
+    if current != expected:
+        raise VersionConflictError()

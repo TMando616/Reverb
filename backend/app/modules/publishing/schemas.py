@@ -3,10 +3,12 @@
 from datetime import datetime
 from typing import Annotated, Any
 
-from pydantic import BaseModel, ConfigDict, SecretStr, StringConstraints
+from pydantic import BaseModel, ConfigDict, Field, SecretStr, StringConstraints
 
 from app.channels.capabilities import ChannelCode
-from app.modules.publishing.models import ConversionJob, JobStatus
+from app.modules.contents.schemas import BODY_MD_MAX_LENGTH
+from app.modules.publishing.models import ChannelDraft, ConversionJob, JobStatus, Visibility
+from app.modules.publishing.service import ChannelView
 
 
 class QiitaAccountOut(BaseModel):
@@ -72,4 +74,91 @@ class ConversionJobOut(ConversionJobSummary):
                 "input_tokens": job.input_tokens,
                 "output_tokens": job.output_tokens,
             }
+        )
+
+
+# 原稿で持てるタグの数。Qiita の制約（1〜5個）は投稿時に見る（design.md §10-4）。
+# 保存では編集途中を許し、リクエストの巨大化だけを止める。
+_DRAFT_TAGS_MAX_ITEMS = 10
+
+DraftTag = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=50)]
+
+
+class DraftSaveRequest(BaseModel):
+    title: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=255)]
+    body: Annotated[str, StringConstraints(max_length=BODY_MD_MAX_LENGTH)]
+    tags: Annotated[list[DraftTag], Field(max_length=_DRAFT_TAGS_MAX_ITEMS)] = []
+    expected_version: int
+
+
+class DraftApplyRequest(BaseModel):
+    job_id: int
+    expected_version: int
+
+
+class ChannelDraftOut(BaseModel):
+    id: int
+    title: str
+    body: str
+    tags: list[str]
+    version: int
+    source_revision_no: int
+    applied_job_id: int | None
+    edited_after_apply: bool
+    pending_job_id: int | None
+    updated_at: datetime
+
+    @classmethod
+    def from_draft(cls, draft: ChannelDraft) -> "ChannelDraftOut":
+        return cls(
+            id=draft.id,
+            title=draft.title,
+            body=draft.body,
+            tags=[str(t) for t in draft.extra.get("tags", [])],
+            version=draft.version,
+            source_revision_no=draft.source_revision_no,
+            applied_job_id=draft.applied_job_id,
+            edited_after_apply=draft.edited_after_apply,
+            pending_job_id=draft.pending_job_id,
+            updated_at=draft.updated_at,
+        )
+
+
+class PublicationOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    content_id: int
+    channel: ChannelCode
+    external_id: str
+    url: str
+    visibility: Visibility | None
+    published_at: datetime
+    published_by: int
+    last_pushed_at: datetime | None
+
+
+class ChannelViewOut(BaseModel):
+    """公開画面の1回分（design.md §6）。"""
+
+    channel: ChannelCode
+    draft: ChannelDraftOut | None
+    draft_is_stale: bool
+    latest_job: ConversionJobOut | None
+    pending_job: ConversionJobOut | None
+    publication: PublicationOut | None
+    latest_revision_no: int
+
+    @classmethod
+    def from_view(cls, view: ChannelView) -> "ChannelViewOut":
+        return cls(
+            channel=view.channel,
+            draft=ChannelDraftOut.from_draft(view.draft) if view.draft else None,
+            draft_is_stale=view.draft_is_stale,
+            latest_job=ConversionJobOut.from_job(view.latest_job) if view.latest_job else None,
+            pending_job=ConversionJobOut.from_job(view.pending_job) if view.pending_job else None,
+            publication=PublicationOut.model_validate(view.publication)
+            if view.publication
+            else None,
+            latest_revision_no=view.latest_revision_no,
         )

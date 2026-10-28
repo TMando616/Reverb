@@ -49,10 +49,10 @@
 
 ## 5. チャネル原稿（C4）
 
-- [ ] 5.1 `DraftService.save`（WRITE・`expected_version`・`edited_after_apply = true`・`extra` を Pydantic で検証）/ `apply`（`pending_job_id` の結果で置き換え・409）
-- [ ] 5.2 `GET .../channels/{ch}`：原稿・最新ジョブ・保留中ジョブの結果・未取消の公開物・最新リビジョン番号をまとめて返す
-- [ ] 5.3 ルーター：`PUT .../draft`、`POST .../draft/apply`
-- [ ] 5.4 ユニットテスト：§9-2 の3分岐（無い → 作る／手直しなし → 置き換え／手直しあり → 保留）／apply の 409 ／原稿が古いことの判定（`source_revision_no`、状態遷移だけでは古くならない）
+- [x] 5.1 `DraftService.save`（WRITE・`expected_version`・`edited_after_apply = true`・`extra` を Pydantic で検証）/ `apply`（`pending_job_id` の結果で置き換え・409）
+- [x] 5.2 `GET .../channels/{ch}`：原稿・最新ジョブ・保留中ジョブの結果・未取消の公開物・最新リビジョン番号をまとめて返す
+- [x] 5.3 ルーター：`PUT .../draft`、`POST .../draft/apply`
+- [x] 5.4 ユニットテスト：§9-2 の3分岐（無い → 作る／手直しなし → 置き換え／手直しあり → 保留）／apply の 409 ／原稿が古いことの判定（`source_revision_no`、状態遷移だけでは古くならない）
 
 ## 6. Qiita への投稿・更新・取消（C6 / C8）
 

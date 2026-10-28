@@ -42,6 +42,9 @@ EXPECTED_OPERATIONS = {
     ("/projects/{project_id}/contents/{content_id}/channels/{channel}/conversions", "post"),
     ("/projects/{project_id}/contents/{content_id}/conversions", "get"),
     ("/projects/{project_id}/contents/{content_id}/conversions/{job_id}", "get"),
+    ("/projects/{project_id}/contents/{content_id}/channels/{channel}", "get"),
+    ("/projects/{project_id}/contents/{content_id}/channels/{channel}/draft", "put"),
+    ("/projects/{project_id}/contents/{content_id}/channels/{channel}/draft/apply", "post"),
 }
 
 

@@ -24,8 +24,9 @@ from app.modules.publishing.repository import (
     ChannelDraftRepository,
     ConversionJobRepository,
     ConversionProfileRepository,
+    PublicationRepository,
 )
-from app.modules.publishing.service import AccountService, ConversionService
+from app.modules.publishing.service import AccountService, ConversionService, DraftService
 
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
 
@@ -75,3 +76,13 @@ def build_conversion_service(session: AsyncSession) -> ConversionService:
 
 def get_conversion_service(session: SessionDep) -> ConversionService:
     return build_conversion_service(session)
+
+
+def get_draft_service(session: SessionDep) -> DraftService:
+    return DraftService(
+        contents=get_content_service(session),
+        authz=ProjectAuthorizer(ProjectMemberRepository(session)),
+        drafts=ChannelDraftRepository(session),
+        jobs=ConversionJobRepository(session),
+        publications=PublicationRepository(session),
+    )
