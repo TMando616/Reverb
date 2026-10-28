@@ -1,11 +1,37 @@
-"""publishing モジュールの DB アクセス（publishing design.md §3）。"""
+"""publishing モジュールの DB アクセス（publishing design.md §3）。
 
-from sqlalchemy import delete, func, select
+業務ルールは持たない（ADR-0009）。コンテンツに属する行は ``content_id`` で絞る。
+コンテンツが企画に属しているかは、Service が先に ``ContentGateway`` で確かめる。
+"""
+
+from collections.abc import Sequence
+from datetime import datetime
+from typing import Any
+
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm.exc import StaleDataError
 
 from app.channels.capabilities import ChannelCode
-from app.modules.publishing.models import ChannelAccount
+from app.core.exceptions import ConversionInProgressError, VersionConflictError
+from app.modules.publishing.models import (
+    ChannelAccount,
+    ChannelDraft,
+    ConversionJob,
+    ConversionProfile,
+    JobStatus,
+)
+from app.modules.publishing.ports import ProfileSnapshot
+
+
+async def _flush_mapping_conflicts(session: AsyncSession) -> None:
+    """flush し、楽観ロックの競合負けを 409 にする（contents の同名関数と同じ）。"""
+    try:
+        await session.flush()
+    except StaleDataError as exc:
+        raise VersionConflictError() from exc
 
 
 class ChannelAccountRepository:
@@ -55,3 +81,189 @@ class ChannelAccountRepository:
                 ChannelAccount.user_id == user_id, ChannelAccount.channel == channel.value
             )
         )
+
+
+class ConversionProfileRepository:
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def get_or_create(
+        self, project_id: int, channel: ChannelCode, default: ProfileSnapshot
+    ) -> ConversionProfile:
+        """初めて変換するときに既定値から行を作る（design.md §3-2）。
+
+        同時に2つ来ても UNIQUE と衝突しないよう ``ON CONFLICT DO NOTHING`` で入れてから読む。
+        """
+        await self._session.execute(
+            insert(ConversionProfile)
+            .values(
+                project_id=project_id,
+                channel=channel.value,
+                structure=default.structure,
+                tone=default.tone,
+                first_person=default.first_person,
+                banned_phrases=default.banned_phrases,
+                version=1,
+            )
+            .on_conflict_do_nothing(constraint="uq_conversion_profiles_project_channel")
+        )
+        result = await self._session.scalars(
+            select(ConversionProfile).where(
+                ConversionProfile.project_id == project_id,
+                ConversionProfile.channel == channel.value,
+            )
+        )
+        return result.one()
+
+
+class ConversionJobRepository:
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def create(
+        self,
+        *,
+        project_id: int,
+        content_id: int,
+        channel: ChannelCode,
+        requested_by: int,
+        source_revision_no: int,
+        profile_snapshot: dict[str, Any],
+        model: str,
+    ) -> ConversionJob:
+        job = ConversionJob(
+            project_id=project_id,
+            content_id=content_id,
+            channel=channel.value,
+            status=JobStatus.QUEUED.value,
+            requested_by=requested_by,
+            source_revision_no=source_revision_no,
+            profile_snapshot=profile_snapshot,
+            model=model,
+        )
+        try:
+            # 部分 UNIQUE に当たってもトランザクション全体を壊さないよう SAVEPOINT の中で。
+            async with self._session.begin_nested():
+                self._session.add(job)
+                await self._session.flush()
+        except IntegrityError as exc:
+            if "uq_conversion_jobs_active" in str(exc.orig):
+                raise ConversionInProgressError() from exc
+            raise
+        return job
+
+    async def get(self, job_id: int) -> ConversionJob | None:
+        return await self._session.get(ConversionJob, job_id)
+
+    async def get_for_content(self, job_id: int, content_id: int) -> ConversionJob | None:
+        result = await self._session.scalars(
+            select(ConversionJob).where(
+                ConversionJob.id == job_id, ConversionJob.content_id == content_id
+            )
+        )
+        return result.one_or_none()
+
+    async def list_for_content(self, content_id: int, limit: int = 50) -> Sequence[ConversionJob]:
+        result = await self._session.scalars(
+            select(ConversionJob)
+            .where(ConversionJob.content_id == content_id)
+            .order_by(ConversionJob.id.desc())
+            .limit(limit)
+        )
+        return result.all()
+
+    async def latest_for(self, content_id: int, channel: ChannelCode) -> ConversionJob | None:
+        result = await self._session.scalars(
+            select(ConversionJob)
+            .where(ConversionJob.content_id == content_id, ConversionJob.channel == channel.value)
+            .order_by(ConversionJob.id.desc())
+            .limit(1)
+        )
+        return result.one_or_none()
+
+    async def claim_next(self, now: datetime) -> ConversionJob | None:
+        """待機中で一番古い1件を ``running`` にして返す（ADR-0017）。
+
+        ``FOR UPDATE SKIP LOCKED``：別のワーカーが押さえている行は飛ばすので、
+        ワーカーが複数動いても同じ行を2つが拾わない。
+        """
+        result = await self._session.scalars(
+            select(ConversionJob)
+            .where(ConversionJob.status == JobStatus.QUEUED.value)
+            .order_by(ConversionJob.created_at, ConversionJob.id)
+            .limit(1)
+            .with_for_update(skip_locked=True)
+        )
+        job = result.one_or_none()
+        if job is None:
+            return None
+        job.status = JobStatus.RUNNING.value
+        job.started_at = now
+        await self._session.flush()
+        return job
+
+    async def reap_stuck(self, started_before: datetime, now: datetime) -> int:
+        """``running`` のまま止まった行を ``interrupted`` で失敗にする（design.md §7-3）。"""
+        result = await self._session.execute(
+            update(ConversionJob)
+            .where(
+                ConversionJob.status == JobStatus.RUNNING.value,
+                ConversionJob.started_at < started_before,
+            )
+            .values(
+                status=JobStatus.FAILED.value,
+                finished_at=now,
+                error_code="interrupted",
+                error_message="the worker stopped before finishing",
+                updated_at=func.now(),
+            )
+            .returning(ConversionJob.id)
+        )
+        return len(result.all())
+
+    async def flush(self) -> None:
+        await self._session.flush()
+
+
+class ChannelDraftRepository:
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def get(self, content_id: int, channel: ChannelCode) -> ChannelDraft | None:
+        result = await self._session.scalars(
+            select(ChannelDraft).where(
+                ChannelDraft.content_id == content_id, ChannelDraft.channel == channel.value
+            )
+        )
+        return result.one_or_none()
+
+    async def create(
+        self,
+        *,
+        project_id: int,
+        content_id: int,
+        channel: ChannelCode,
+        title: str,
+        body: str,
+        extra: dict[str, Any],
+        source_revision_no: int,
+        applied_job_id: int,
+    ) -> ChannelDraft:
+        draft = ChannelDraft(
+            project_id=project_id,
+            content_id=content_id,
+            channel=channel.value,
+            title=title,
+            body=body,
+            extra=extra,
+            source_revision_no=source_revision_no,
+            applied_job_id=applied_job_id,
+            edited_after_apply=False,
+        )
+        self._session.add(draft)
+        await self.flush()
+        return draft
+
+    async def flush(self) -> None:
+        """保留中の変更を flush する（楽観ロックの競合は 409）。"""
+        await _flush_mapping_conflicts(self._session)

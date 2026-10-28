@@ -38,6 +38,10 @@ EXPECTED_OPERATIONS = {
     ("/me/accounts/qiita", "get"),
     ("/me/accounts/qiita", "put"),
     ("/me/accounts/qiita", "delete"),
+    ("/channels", "get"),
+    ("/projects/{project_id}/contents/{content_id}/channels/{channel}/conversions", "post"),
+    ("/projects/{project_id}/contents/{content_id}/conversions", "get"),
+    ("/projects/{project_id}/contents/{content_id}/conversions/{job_id}", "get"),
 }
 
 

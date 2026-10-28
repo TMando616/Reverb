@@ -331,6 +331,11 @@ class ContentService:
         """
         return await self._revisions.latest_no(content.id)
 
+    async def tag_names(self, actor: Actor, project_id: int) -> Sequence[str]:
+        """企画の既存タグ名。変換でタグ候補を既存に寄せるため（publishing design.md §10-4）。"""
+        await self._authz.require(actor, project_id, Permission.CONTENT_VIEW)
+        return [tag.name for tag, _ in await self._tags.list_with_usage(project_id)]
+
     async def _move(
         self, content: Content, current: ContentStatus, to: ContentStatus, actor: Actor
     ) -> None:

@@ -158,3 +158,20 @@ async def test_network_errors_are_upstream_unavailable(error: Exception) -> None
         await converter.convert(REQUEST)
 
     assert excinfo.value.error_code == "upstream_unavailable"
+
+
+async def test_missing_credentials_are_misconfigured() -> None:
+    error = TypeError("Could not resolve authentication method. Expected one of api_key, ...")
+    converter, _ = _converter(error)
+
+    with pytest.raises(ConversionFailed) as excinfo:
+        await converter.convert(REQUEST)
+
+    assert excinfo.value.error_code == "misconfigured"
+
+
+async def test_other_type_errors_are_not_swallowed() -> None:
+    converter, _ = _converter(TypeError("a bug"))
+
+    with pytest.raises(TypeError, match="a bug"):
+        await converter.convert(REQUEST)

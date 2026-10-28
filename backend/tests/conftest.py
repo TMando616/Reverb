@@ -11,6 +11,10 @@ import asyncio
 import os
 from collections.abc import AsyncIterator, Iterator
 
+# テストでは変換ワーカーを起動しない（ワーカーの関数を直接呼んで確かめる・ADR-0017）。
+# app を import する前に設定する（get_settings は lru_cache）。
+os.environ.setdefault("RUN_CONVERSION_WORKER", "false")
+
 import pytest
 from app.core.db import Base, get_session
 from app.core.security import hash_password

@@ -106,6 +106,16 @@ class ConversionInProgressError(AppError):
         super().__init__(message)
 
 
+class UnsupportedChannelError(AppError):
+    """このチャネルでは、その操作がまだできない（M1 で変換できるのは Qiita だけ等）。"""
+
+    status = 422
+    code = "unsupported_channel"
+
+    def __init__(self, message: str = "this channel does not support the operation yet") -> None:
+        super().__init__(message)
+
+
 class PublicationExistsError(AppError):
     """取り消されていない公開物がすでにある。新規投稿ではなく更新を使う。"""
 

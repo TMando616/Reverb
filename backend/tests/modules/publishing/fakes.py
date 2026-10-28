@@ -2,7 +2,14 @@
 
 from dataclasses import dataclass, field
 
-from app.modules.publishing.ports import QiitaError, QiitaItemInput, QiitaItemRef
+from app.modules.publishing.ports import (
+    ConversionFailed,
+    ConversionInput,
+    ConversionOutput,
+    QiitaError,
+    QiitaItemInput,
+    QiitaItemRef,
+)
 
 
 @dataclass
@@ -38,3 +45,31 @@ class FakeQiita:
         self._maybe_fail()
         self.updated.append((token, item_id, item))
         return QiitaItemRef(id=item_id, url=f"https://qiita.com/{self.user_name}/items/{item_id}")
+
+
+@dataclass
+class FakeConverter:
+    """変換の fake。``fail_with`` で失敗を、``output`` で結果を決める。受け取った入力を記録する。"""
+
+    output: ConversionOutput = field(
+        default_factory=lambda: ConversionOutput(
+            title="Qiita 向けタイトル",
+            body="## はじめに\n本文",
+            tags=["Python", "FastAPI"],
+            request_id="req_fake",
+            input_tokens=100,
+            output_tokens=200,
+        )
+    )
+    fail_with: Exception | None = None
+    inputs: list[ConversionInput] = field(default_factory=list)
+
+    async def convert(self, request: ConversionInput) -> ConversionOutput:
+        self.inputs.append(request)
+        if self.fail_with is not None:
+            raise self.fail_with
+        return self.output
+
+
+def conversion_failed(code: str) -> ConversionFailed:
+    return ConversionFailed(code, f"{code} happened", "req_fail")

@@ -81,6 +81,12 @@ class ClaudeConverter:
         except anthropic.APIConnectionError:
             # APITimeoutError もここ（APIConnectionError の子）。
             raise ConversionFailed("upstream_unavailable", "could not reach the api") from None
+        except TypeError as exc:
+            # API キーが無いと、SDK は送信前に API エラーではなく TypeError を投げる。
+            if "authentication method" not in str(exc):
+                raise
+            logger.error("claude api misconfigured: no credentials")
+            raise ConversionFailed("misconfigured", "api credentials are not set") from None
 
         request_id = getattr(message, "_request_id", None)
         if message.stop_reason == "refusal":

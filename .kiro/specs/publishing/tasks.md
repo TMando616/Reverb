@@ -41,11 +41,11 @@
 - [x] 4.1 `ports.py` にポートを置く：`Converter` / `ConversionInput` / `ConversionOutput` / `ConversionFailed`、`JobDispatcher`（M1 は何もしない実装）、`ContentGateway`
 - [x] 4.2 `publishing/profiles.py` に Qiita の `DEFAULT_PROFILES`、`llm/prompts.py` に（グローバル CLAUDE.md §5 の Qiita の節を移植・禁則フレーズは配列）と system / user の組み立て（`design.md` §8-2）
 - [x] 4.3 **`/claude-api` スキルを読み直してから** `llm/converter.py`：`AsyncAnthropic`・`messages.stream` ＋ `get_final_message`・effort medium・structured outputs `{title, body, tags}`・`max_tokens` 64000・timeout 600秒・`fallbacks: "default"`。例外と `stop_reason` を `error_code` に（§8-3）。`usage` と `request_id` を返す
-- [ ] 4.4 `ConversionService.request`（WRITE・プロファイルが無ければ既定値から作る・`profile_snapshot` と `source_revision_no` を写す・部分 UNIQUE 違反は 409 `conversion_in_progress`）
-- [ ] 4.5 `ConversionService.claim`（`FOR UPDATE SKIP LOCKED`）/ `complete` / `fail` / `reap_stuck`（15分以上 `running` → `interrupted`）。`complete` で原稿へ反映（§9-2 の3分岐）
-- [ ] 4.6 `jobs/worker.py`：2秒のループ（回収 → 拾う → DB の外で変換 → 書く）。commit はワーカーが持つ。`main.py` の lifespan で起動・停止、`RUN_CONVERSION_WORKER=false` で起動しない
-- [ ] 4.7 ルーター：`GET /channels`、`POST .../channels/{ch}/conversions`（202）、`GET .../conversions`、`GET .../conversions/{job_id}`
-- [ ] 4.8 ユニットテスト：editor は変換できる・reviewer / demo 403 ／二重実行 409 ／2つ目の `claim` は同じ行を拾わない ／回収 ／`FakeConverter` の各失敗が `error_code` になる ／`converter.py` を SDK のクライアント差し替えで（refusal / max_tokens / Schema 不一致 / 各例外）
+- [x] 4.4 `ConversionService.request`（WRITE・プロファイルが無ければ既定値から作る・`profile_snapshot` と `source_revision_no` を写す・部分 UNIQUE 違反は 409 `conversion_in_progress`）
+- [x] 4.5 `ConversionService.claim`（`FOR UPDATE SKIP LOCKED`）/ `complete` / `fail` / `reap_stuck`（15分以上 `running` → `interrupted`）。`complete` で原稿へ反映（§9-2 の3分岐）
+- [x] 4.6 `jobs/worker.py`：2秒のループ（回収 → 拾う → DB の外で変換 → 書く）。commit はワーカーが持つ。`main.py` の lifespan で起動・停止、`RUN_CONVERSION_WORKER=false` で起動しない
+- [x] 4.7 ルーター：`GET /channels`、`POST .../channels/{ch}/conversions`（202）、`GET .../conversions`、`GET .../conversions/{job_id}`
+- [x] 4.8 ユニットテスト：editor は変換できる・reviewer / demo 403 ／二重実行 409 ／2つ目の `claim` は同じ行を拾わない ／回収 ／`FakeConverter` の各失敗が `error_code` になる ／`converter.py` を SDK のクライアント差し替えで（refusal / max_tokens / Schema 不一致 / 各例外）
 
 ## 5. チャネル原稿（C4）
 

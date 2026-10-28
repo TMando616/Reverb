@@ -207,6 +207,8 @@ POST /conversions                         ワーカー（同じプロセスの a
 - **`FOR UPDATE SKIP LOCKED`** で、ワーカーが複数動いても（`uvicorn --workers` や将来のコンテナ分割）同じ行を2つが拾わない
 - ①と③の間で DB の接続もロックも持たない。変換は数十秒〜数分かかるため
 - **commit の持ち主はワーカー**（cli.py と同じく、Service の外にある唯一の commit）。Service は flush だけ
+- **ワーカーは依頼した人として認可を通し直す**（ログインした人がいないため）。変換するのは依頼したときの版（`source_revision_no` のリビジョンの本文）で、拾うまでの間に本文が変わっても入れ替わらない
+- ③で原稿の保存と競合して楽観ロックに負けたら、読み直してもう1回だけ書く（2回目は「手で直した」を見て保留にする）
 - 起動：`main.py` の lifespan でワーカーのタスクを作り、終了時にキャンセルする。設定 `RUN_CONVERSION_WORKER`（既定 `true`）。テストでは `false`
 
 ### 7-3. 止まったジョブの回収
@@ -283,6 +285,9 @@ user
 | `stop_reason == "refusal"` | `refused` | 変換できなかった |
 | JSON が Schema に合わない | `invalid_output` | 再実行 |
 | §7-3 の回収 | `interrupted` | 再実行 |
+| 依頼した人が権限を失った・コンテンツが消えた（ワーカーが拾ったとき） | `source_unavailable` | 変換できなかった |
+| 想定外の例外（バグ） | `internal_error` | 再実行。続くなら管理者へ |
+| API キーが設定されていない（SDK が送信前に `TypeError`） | `misconfigured` | 管理者向けの設定の問題 |
 
 例外は**具体的なものから順に**捕まえる（スキルの注意）。`except Exception` で丸めない。
 

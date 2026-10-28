@@ -5,11 +5,12 @@ Service はここにある Protocol とデータの型だけを知る。具体�
 実装側もここを import して型と例外をそろえる（依存の向きは「実装 → ポート」）。
 """
 
+from collections.abc import Sequence
 from dataclasses import asdict, dataclass, field
 from typing import Any, Protocol
 
 from app.core.authorization import Actor
-from app.modules.contents.models import Content
+from app.modules.contents.models import Content, ContentRevision
 
 # --- Qiita（design.md §10） ---
 
@@ -160,6 +161,12 @@ class ContentGateway(Protocol):
     """publishing からコンテンツへの入口。状態遷移と遷移ログは contents の持ち物のまま。"""
 
     async def get(self, actor: Actor, project_id: int, content_id: int) -> Content: ...
+
+    async def get_revision(
+        self, actor: Actor, project_id: int, content_id: int, revision_no: int
+    ) -> ContentRevision: ...
+
+    async def tag_names(self, actor: Actor, project_id: int) -> Sequence[str]: ...
 
     async def lock_for_publish(self, actor: Actor, project_id: int, content_id: int) -> Content: ...
 
