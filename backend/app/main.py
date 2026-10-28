@@ -20,6 +20,7 @@ from app.modules.publishing.router import (
     accounts_router,
     channels_router,
     content_channels_router,
+    publications_router,
 )
 
 
@@ -65,6 +66,7 @@ def create_app() -> FastAPI:
     app.include_router(accounts_router)
     app.include_router(channels_router)
     app.include_router(content_channels_router)
+    app.include_router(publications_router)
     return app
 
 

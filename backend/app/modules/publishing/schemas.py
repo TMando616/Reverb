@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field, SecretStr, StringConstraints
 from app.channels.capabilities import ChannelCode
 from app.modules.contents.schemas import BODY_MD_MAX_LENGTH
 from app.modules.publishing.models import ChannelDraft, ConversionJob, JobStatus, Visibility
-from app.modules.publishing.service import ChannelView
+from app.modules.publishing.service import ChannelView, PublishedContent
 
 
 class QiitaAccountOut(BaseModel):
@@ -161,4 +161,30 @@ class ChannelViewOut(BaseModel):
             if view.publication
             else None,
             latest_revision_no=view.latest_revision_no,
+        )
+
+
+class QiitaPublishRequest(BaseModel):
+    # 既定値を置かない。画面が既定で限定共有を選ばせる（design.md §13-4）。
+    visibility: Visibility
+    expected_draft_version: int
+
+
+class QiitaPushRequest(BaseModel):
+    expected_draft_version: int
+    # 省略すると今の公開範囲のまま。限定共有 → 一般公開だけ変えられる。
+    visibility: Visibility | None = None
+
+
+class PublishedContentOut(BaseModel):
+    content_id: int
+    title: str
+    publications: list[PublicationOut]
+
+    @classmethod
+    def from_entry(cls, entry: PublishedContent) -> "PublishedContentOut":
+        return cls(
+            content_id=entry.content_id,
+            title=entry.title,
+            publications=[PublicationOut.model_validate(p) for p in entry.publications],
         )

@@ -45,6 +45,10 @@ EXPECTED_OPERATIONS = {
     ("/projects/{project_id}/contents/{content_id}/channels/{channel}", "get"),
     ("/projects/{project_id}/contents/{content_id}/channels/{channel}/draft", "put"),
     ("/projects/{project_id}/contents/{content_id}/channels/{channel}/draft/apply", "post"),
+    ("/projects/{project_id}/contents/{content_id}/channels/qiita/publish", "post"),
+    ("/projects/{project_id}/contents/{content_id}/channels/qiita/push", "post"),
+    ("/projects/{project_id}/publications", "get"),
+    ("/projects/{project_id}/publications/{publication_id}", "delete"),
 }
 
 

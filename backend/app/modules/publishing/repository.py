@@ -16,6 +16,7 @@ from sqlalchemy.orm.exc import StaleDataError
 
 from app.channels.capabilities import ChannelCode
 from app.core.exceptions import ConversionInProgressError, VersionConflictError
+from app.modules.contents.models import Content
 from app.modules.publishing.models import (
     ChannelAccount,
     ChannelDraft,
@@ -273,6 +274,65 @@ class ChannelDraftRepository:
 class PublicationRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
+
+    async def create(
+        self,
+        *,
+        project_id: int,
+        content_id: int,
+        channel: ChannelCode,
+        external_id: str,
+        url: str,
+        visibility: str | None,
+        published_by: int,
+    ) -> Publication:
+        publication = Publication(
+            project_id=project_id,
+            content_id=content_id,
+            channel=channel.value,
+            external_id=external_id,
+            url=url,
+            visibility=visibility,
+            published_by=published_by,
+        )
+        self._session.add(publication)
+        await self._session.flush()
+        return publication
+
+    async def get_in_project(self, publication_id: int, project_id: int) -> Publication | None:
+        result = await self._session.scalars(
+            select(Publication).where(
+                Publication.id == publication_id, Publication.project_id == project_id
+            )
+        )
+        return result.one_or_none()
+
+    async def count_active(self, content_id: int) -> int:
+        return (
+            await self._session.scalar(
+                select(func.count()).where(
+                    Publication.content_id == content_id, Publication.cancelled_at.is_(None)
+                )
+            )
+            or 0
+        )
+
+    async def list_active_in_project(self, project_id: int) -> Sequence[tuple[Publication, str]]:
+        """企画の取り消されていない公開物と、そのコンテンツのタイトル（新しい順）。"""
+        result = await self._session.execute(
+            select(Publication, Content.title)
+            .join(Content, Content.id == Publication.content_id)
+            .where(
+                Publication.project_id == project_id,
+                Publication.cancelled_at.is_(None),
+                Content.deleted_at.is_(None),
+            )
+            .order_by(Publication.published_at.desc(), Publication.id.desc())
+        )
+        return [(row[0], row[1]) for row in result.tuples()]
+
+    async def flush(self) -> None:
+        await self._session.flush()
 
     async def get_active(self, content_id: int, channel: ChannelCode) -> Publication | None:
         """取り消されていない公開物（コンテンツ×チャネルで高々1件・部分 UNIQUE）。"""

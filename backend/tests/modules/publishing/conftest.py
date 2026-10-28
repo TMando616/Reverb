@@ -23,7 +23,12 @@ from app.modules.publishing.repository import (
     ConversionProfileRepository,
     PublicationRepository,
 )
-from app.modules.publishing.service import AccountService, ConversionService, DraftService
+from app.modules.publishing.service import (
+    AccountService,
+    ConversionService,
+    DraftService,
+    PublicationService,
+)
 from cryptography.fernet import Fernet
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -71,6 +76,9 @@ class Publishing:
     world: World
     conversions: ConversionService
     drafts: DraftService
+    publications: PublicationService
+    accounts: AccountService
+    qiita: FakeQiita
     converter: FakeConverter
     session: AsyncSession
 
@@ -105,6 +113,8 @@ class Publishing:
 @pytest.fixture
 async def publishing(world: World, db_session: AsyncSession) -> Publishing:  # noqa: F811
     authz = ProjectAuthorizer(ProjectMemberRepository(db_session))
+    qiita = FakeQiita()
+    accounts = AccountService(ChannelAccountRepository(db_session), qiita, TokenCipher([TEST_KEY]))
     return Publishing(
         world=world,
         conversions=ConversionService(
@@ -123,6 +133,16 @@ async def publishing(world: World, db_session: AsyncSession) -> Publishing:  # n
             jobs=ConversionJobRepository(db_session),
             publications=PublicationRepository(db_session),
         ),
+        publications=PublicationService(
+            contents=world.contents,
+            authz=authz,
+            drafts=ChannelDraftRepository(db_session),
+            publications=PublicationRepository(db_session),
+            accounts=accounts,
+            qiita=qiita,
+        ),
+        accounts=accounts,
+        qiita=qiita,
         converter=FakeConverter(),
         session=db_session,
     )

@@ -15,8 +15,10 @@ from app.core.authorization import Actor, Permission, ProjectAuthorizer, require
 from app.core.crypto import TokenUnavailableError
 from app.core.exceptions import (
     AppError,
+    InvalidDraftError,
     InvalidQiitaTokenError,
     NotFoundError,
+    PublicationExistsError,
     QiitaItemMissingError,
     QiitaRateLimitedAppError,
     QiitaRejectedPublishError,
@@ -32,6 +34,7 @@ from app.modules.publishing.models import (
     ConversionJob,
     JobStatus,
     Publication,
+    Visibility,
 )
 from app.modules.publishing.ports import (
     ContentGateway,
@@ -43,6 +46,7 @@ from app.modules.publishing.ports import (
     QiitaAuthError,
     QiitaError,
     QiitaGateway,
+    QiitaItemInput,
     QiitaNotFoundError,
     QiitaRateLimitedError,
     QiitaRejectedError,
@@ -451,3 +455,185 @@ class DraftService:
 def _check_version(current: int, expected: int) -> None:
     if current != expected:
         raise VersionConflictError()
+
+
+# Qiita のタグ数（画面の制約。API ドキュメントに明記が無いので実機で確かめる・design.md §10-4）。
+QIITA_MIN_TAGS = 1
+QIITA_MAX_TAGS = 5
+
+
+@dataclass(frozen=True, slots=True)
+class PublishedContent:
+    """企画の公開済み一覧の1行（コンテンツ単位にまとめる・design.md §11）。"""
+
+    content_id: int
+    title: str
+    publications: list[Publication]
+
+
+class PublicationService:
+    """外部への公開・更新・公開取消（C6・C8・design.md §10・§11）。
+
+    公開系はすべて ``CONTENT_PUBLISH``（owner のみ）。同じコンテンツへの公開操作は
+    コンテンツ行のロック（``lock_for_publish``）で直列化する。
+    """
+
+    def __init__(
+        self,
+        *,
+        contents: ContentGateway,
+        authz: ProjectAuthorizer,
+        drafts: ChannelDraftRepository,
+        publications: PublicationRepository,
+        accounts: AccountService,
+        qiita: QiitaGateway,
+    ) -> None:
+        self._contents = contents
+        self._authz = authz
+        self._drafts = drafts
+        self._publications = publications
+        self._accounts = accounts
+        self._qiita = qiita
+
+    async def publish_qiita(
+        self,
+        actor: Actor,
+        project_id: int,
+        content_id: int,
+        *,
+        visibility: Visibility,
+        expected_draft_version: int,
+    ) -> Publication:
+        """Qiita へ新規投稿し、公開物を記録して公開済にする（design.md §10-3 の9段）。"""
+        channel = ChannelCode.QIITA
+        _require_auto(channel)
+        # 2. 行ロック：2つ目の同時リクエストはここで1つ目の commit を待つ。
+        content = await self._contents.lock_for_publish(actor, project_id, content_id)
+        # 3. 外に送る前に状態を見る。送ってから弾くと記事だけが外に残る。
+        self._contents.ensure_publishable(content)
+        # 4.
+        if await self._publications.get_active(content.id, channel) is not None:
+            raise PublicationExistsError()
+        # 5.
+        draft = await self._draft(content.id, channel, expected_draft_version)
+        item = _qiita_item(draft, private=visibility is Visibility.PRIVATE)
+        # 6.
+        token = await self._accounts.qiita_token_for(actor)
+        # 7. 外部への送信。POST は冪等でないので再試行しない（QiitaClient）。
+        try:
+            ref = await self._qiita.create_item(token, item)
+        except QiitaError as exc:
+            raise qiita_app_error(exc) from None
+        # 送信は成功した。以降で DB が失敗すると「Qiita にあるのに記録が無い」になるので、
+        # 気づいて直せるよう外部 ID を残しておく（復旧手順は README）。
+        logger.info("qiita item created: content=%s item=%s url=%s", content.id, ref.id, ref.url)
+        try:
+            # 8.
+            publication = await self._publications.create(
+                project_id=project_id,
+                content_id=content.id,
+                channel=channel,
+                external_id=ref.id,
+                url=ref.url,
+                visibility=visibility.value,
+                published_by=actor.user_id,
+            )
+            await self._contents.mark_published(actor, content)
+        except Exception:
+            logger.error(
+                "qiita item %s (%s) was created but recording failed: content=%s",
+                ref.id,
+                ref.url,
+                content.id,
+            )
+            raise
+        return publication
+
+    async def push_qiita(
+        self,
+        actor: Actor,
+        project_id: int,
+        content_id: int,
+        *,
+        expected_draft_version: int,
+        visibility: Visibility | None = None,
+    ) -> Publication:
+        """公開済みの Qiita 記事を原稿で更新する。状態は変えない（design.md §10-3）。"""
+        channel = ChannelCode.QIITA
+        _require_auto(channel)
+        content = await self._contents.lock_for_publish(actor, project_id, content_id)
+        publication = await self._publications.get_active(content.id, channel)
+        if publication is None:
+            raise NotFoundError("publication")
+        current = Visibility(publication.visibility or Visibility.PUBLIC.value)
+        wanted = visibility or current
+        if current is Visibility.PUBLIC and wanted is Visibility.PRIVATE:
+            # 一般公開から限定共有には戻せない想定（実機で確かめる・design.md §10-4）。
+            raise InvalidDraftError("a public item cannot be made private")
+        draft = await self._draft(content.id, channel, expected_draft_version)
+        item = _qiita_item(draft, private=wanted is Visibility.PRIVATE)
+        token = await self._accounts.qiita_token_for(actor)
+        try:
+            ref = await self._qiita.update_item(token, publication.external_id, item)
+        except QiitaError as exc:
+            raise qiita_app_error(exc) from None
+        publication.url = ref.url
+        publication.visibility = wanted.value
+        publication.last_pushed_at = datetime.now(UTC)
+        await self._publications.flush()
+        return publication
+
+    async def cancel(self, actor: Actor, project_id: int, publication_id: int) -> None:
+        """公開取消（論理削除）。外部の記事は消さない。0件になったら執筆中へ戻す（§11）。"""
+        await self._authz.require(actor, project_id, Permission.CONTENT_PUBLISH)
+        publication = await self._publications.get_in_project(publication_id, project_id)
+        if publication is None or publication.cancelled_at is not None:
+            raise NotFoundError("publication")
+        # 同じコンテンツの公開と取消を直列化する。
+        content = await self._contents.lock_for_publish(actor, project_id, publication.content_id)
+        publication.cancelled_at = datetime.now(UTC)
+        publication.cancelled_by = actor.user_id
+        await self._publications.flush()
+        if await self._publications.count_active(content.id) == 0:
+            await self._contents.mark_unpublished(actor, content)
+
+    async def list_for_project(self, actor: Actor, project_id: int) -> list[PublishedContent]:
+        await self._authz.require(actor, project_id, Permission.CONTENT_VIEW)
+        grouped: dict[int, PublishedContent] = {}
+        for publication, title in await self._publications.list_active_in_project(project_id):
+            # 新しい順に来るので、最初に出たコンテンツほど上に並ぶ。
+            entry = grouped.setdefault(
+                publication.content_id, PublishedContent(publication.content_id, title, [])
+            )
+            entry.publications.append(publication)
+        return list(grouped.values())
+
+    async def _draft(
+        self, content_id: int, channel: ChannelCode, expected_version: int
+    ) -> ChannelDraft:
+        draft = await self._drafts.get(content_id, channel)
+        if draft is None:
+            raise NotFoundError("draft")
+        _check_version(draft.version, expected_version)
+        return draft
+
+
+def _require_auto(channel: ChannelCode) -> None:
+    """API で公開できるのは publish = auto のチャネルだけ（C1）。"""
+    if CAPABILITIES[channel].publish != "auto":
+        raise UnsupportedChannelError(f"{channel} cannot be published automatically")
+
+
+def _qiita_item(draft: ChannelDraft, *, private: bool) -> QiitaItemInput:
+    """原稿を Qiita の制約に照らして送る形にする（design.md §10-4）。満たさなければ 422。"""
+    title = draft.title.strip()
+    if not title:
+        raise InvalidDraftError("title is required")
+    if not draft.body.strip():
+        raise InvalidDraftError("body is required")
+    tags = list(
+        dict.fromkeys(str(t).strip() for t in draft.extra.get("tags", []) if str(t).strip())
+    )
+    if not QIITA_MIN_TAGS <= len(tags) <= QIITA_MAX_TAGS:
+        raise InvalidDraftError(f"qiita needs {QIITA_MIN_TAGS} to {QIITA_MAX_TAGS} tags")
+    return QiitaItemInput(title=title, body=draft.body, tags=tags, private=private)

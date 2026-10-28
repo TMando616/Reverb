@@ -14,8 +14,14 @@ from app.modules.publishing.deps import (
     get_account_service,
     get_conversion_service,
     get_draft_service,
+    get_publication_service,
 )
-from app.modules.publishing.service import AccountService, ConversionService, DraftService
+from app.modules.publishing.service import (
+    AccountService,
+    ConversionService,
+    DraftService,
+    PublicationService,
+)
 
 # 企画の外（ユーザー単位）なので /projects の下に置かない（design.md §6）。
 accounts_router = APIRouter(prefix="/me/accounts", tags=["accounts"])
@@ -28,6 +34,8 @@ content_channels_router = APIRouter(
 AccountServiceDep = Annotated[AccountService, Depends(get_account_service)]
 ConversionServiceDep = Annotated[ConversionService, Depends(get_conversion_service)]
 DraftServiceDep = Annotated[DraftService, Depends(get_draft_service)]
+PublicationServiceDep = Annotated[PublicationService, Depends(get_publication_service)]
+publications_router = APIRouter(prefix="/projects/{project_id}/publications", tags=["publishing"])
 
 
 @channels_router.get("", response_model=list[schemas.ChannelOut])
@@ -159,3 +167,60 @@ async def apply_pending_conversion(
         expected_version=body.expected_version,
     )
     return schemas.ChannelDraftOut.from_draft(draft)
+
+
+# 公開系のパスに qiita を書くのは、M1 で API 公開（auto）できるのが Qiita だけだから。
+# 分岐は Service が capabilities を見て行う（design.md §6）。
+@content_channels_router.post(
+    "/channels/qiita/publish",
+    response_model=schemas.PublicationOut,
+    status_code=status.HTTP_201_CREATED,
+)
+async def publish_to_qiita(
+    project_id: int,
+    content_id: int,
+    body: schemas.QiitaPublishRequest,
+    actor: CurrentActor,
+    service: PublicationServiceDep,
+) -> schemas.PublicationOut:
+    publication = await service.publish_qiita(
+        actor,
+        project_id,
+        content_id,
+        visibility=body.visibility,
+        expected_draft_version=body.expected_draft_version,
+    )
+    return schemas.PublicationOut.model_validate(publication)
+
+
+@content_channels_router.post("/channels/qiita/push", response_model=schemas.PublicationOut)
+async def push_to_qiita(
+    project_id: int,
+    content_id: int,
+    body: schemas.QiitaPushRequest,
+    actor: CurrentActor,
+    service: PublicationServiceDep,
+) -> schemas.PublicationOut:
+    publication = await service.push_qiita(
+        actor,
+        project_id,
+        content_id,
+        expected_draft_version=body.expected_draft_version,
+        visibility=body.visibility,
+    )
+    return schemas.PublicationOut.model_validate(publication)
+
+
+@publications_router.get("", response_model=list[schemas.PublishedContentOut])
+async def list_publications(
+    project_id: int, actor: CurrentActor, service: PublicationServiceDep
+) -> list[schemas.PublishedContentOut]:
+    entries = await service.list_for_project(actor, project_id)
+    return [schemas.PublishedContentOut.from_entry(entry) for entry in entries]
+
+
+@publications_router.delete("/{publication_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def cancel_publication(
+    project_id: int, publication_id: int, actor: CurrentActor, service: PublicationServiceDep
+) -> None:
+    await service.cancel(actor, project_id, publication_id)

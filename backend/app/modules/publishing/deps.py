@@ -26,7 +26,12 @@ from app.modules.publishing.repository import (
     ConversionProfileRepository,
     PublicationRepository,
 )
-from app.modules.publishing.service import AccountService, ConversionService, DraftService
+from app.modules.publishing.service import (
+    AccountService,
+    ConversionService,
+    DraftService,
+    PublicationService,
+)
 
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
 
@@ -85,4 +90,19 @@ def get_draft_service(session: SessionDep) -> DraftService:
         drafts=ChannelDraftRepository(session),
         jobs=ConversionJobRepository(session),
         publications=PublicationRepository(session),
+    )
+
+
+def get_publication_service(
+    session: SessionDep,
+    qiita: Annotated[QiitaGateway, Depends(get_qiita_gateway)],
+    accounts: Annotated[AccountService, Depends(get_account_service)],
+) -> PublicationService:
+    return PublicationService(
+        contents=get_content_service(session),
+        authz=ProjectAuthorizer(ProjectMemberRepository(session)),
+        drafts=ChannelDraftRepository(session),
+        publications=PublicationRepository(session),
+        accounts=accounts,
+        qiita=qiita,
     )
