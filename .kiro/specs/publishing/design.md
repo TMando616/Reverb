@@ -24,6 +24,7 @@ backend/app/
 │   ├── models.py        ConversionProfile / ConversionJob / ChannelDraft / ChannelAccount / Publication
 │   ├── repository.py
 │   ├── service.py       ConversionService / DraftService / AccountService / PublicationService
+│   ├── profiles.py      変換プロファイルの初期値（Service が行を作るので llm ではなくここ）
 │   ├── ports.py         ポート（Protocol）と入出力の型・失敗の型。Service と具体実装の両方がここを import する
 │   ├── schemas.py
 │   ├── router.py
@@ -91,7 +92,7 @@ projects                            │
 |---|---|---|
 | **チャネルの定義** | **コードに置く**（`ChannelCode` StrEnum ＋ `CAPABILITIES` dict）。テーブルにはチャネルを `text` ＋ CHECK 制約で持つ | capabilities は振る舞い（Qiita なら API を叩く）と一体で、**チャネルを足すにはどのみちコードが要る**。DB に写しを置くとずれる。requirements-overview §8 の `channels` テーブルは作らない（§17 で overview を直す） |
 | 変換プロファイル | **企画×チャネルで1件**。項目ごとの列（`structure` / `tone` / `first_person` / `banned_phrases text[]`）＋ `version` | 権限マトリクスが「企画単位の owner が編集」なので企画に持たせる。列に分けるのは、編集画面（M3）でフォームにしやすく、プロンプトの組み立て（§8-2）で順番を固定できるから |
-| プロファイルの初期値 | コード（`llm/prompts.py` の `DEFAULT_PROFILES`）に置き、**初めて変換するときにその企画の行を作る** | 企画を作るたびに4行入れる、を避ける。シードのマイグレーションも要らない |
+| プロファイルの初期値 | コード（`modules/publishing/profiles.py` の `DEFAULT_PROFILES`）に置き、**初めて変換するときにその企画の行を作る** | 企画を作るたびに4行入れる、を避ける。シードのマイグレーションも要らない |
 | 変換ジョブ | **`conversion_jobs` 1行が「キューの1件」と「実行履歴の1行」を兼ねる** | M1 に別のキューは無い（§7）。履歴（C3）を別テーブルにすると同じ情報を2回書く |
 | `profile_snapshot` | `jsonb`。変換時のプロファイルの内容を丸ごと写す | C2「後でプロファイルを変えても、過去の変換が何で作られたか分かる」。プロファイルの版の履歴テーブルを持つより単純 |
 | `source_revision_no` | 変換したときの**最新リビジョン番号**を記録する。`contents.version` ではない | `version` は状態遷移・`source_note_path` でも進む（content-pipeline §4）。**公開で `公開済` に遷移しただけで「原稿が古い」と出てしまう。** リビジョンは本文（タイトル・本文）が変わったときだけ増えるので、比較に使える |
