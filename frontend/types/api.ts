@@ -55,6 +55,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/channels": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Channels */
+        get: operations["list_channels_channels_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -84,6 +101,25 @@ export interface paths {
         /** Accept Invitation */
         post: operations["accept_invitation_invitations__token__accept_post"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/accounts/qiita": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Qiita Account */
+        get: operations["get_qiita_account_me_accounts_qiita_get"];
+        /** Register Qiita Account */
+        put: operations["register_qiita_account_me_accounts_qiita_put"];
+        post?: never;
+        /** Delete Qiita Account */
+        delete: operations["delete_qiita_account_me_accounts_qiita_delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -159,6 +195,142 @@ export interface paths {
         head?: never;
         /** Update Content */
         patch: operations["update_content_projects__project_id__contents__content_id__patch"];
+        trace?: never;
+    };
+    "/projects/{project_id}/contents/{content_id}/channels/qiita/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Publish To Qiita */
+        post: operations["publish_to_qiita_projects__project_id__contents__content_id__channels_qiita_publish_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{project_id}/contents/{content_id}/channels/qiita/push": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Push To Qiita */
+        post: operations["push_to_qiita_projects__project_id__contents__content_id__channels_qiita_push_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{project_id}/contents/{content_id}/channels/{channel}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Channel View */
+        get: operations["get_channel_view_projects__project_id__contents__content_id__channels__channel__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{project_id}/contents/{content_id}/channels/{channel}/conversions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Request Conversion */
+        post: operations["request_conversion_projects__project_id__contents__content_id__channels__channel__conversions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{project_id}/contents/{content_id}/channels/{channel}/draft": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Save Draft */
+        put: operations["save_draft_projects__project_id__contents__content_id__channels__channel__draft_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{project_id}/contents/{content_id}/channels/{channel}/draft/apply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Apply Pending Conversion */
+        post: operations["apply_pending_conversion_projects__project_id__contents__content_id__channels__channel__draft_apply_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{project_id}/contents/{content_id}/conversions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Conversions */
+        get: operations["list_conversions_projects__project_id__contents__content_id__conversions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{project_id}/contents/{content_id}/conversions/{job_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Conversion */
+        get: operations["get_conversion_projects__project_id__contents__content_id__conversions__job_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/projects/{project_id}/contents/{content_id}/revisions": {
@@ -298,6 +470,40 @@ export interface paths {
         patch: operations["change_member_role_projects__project_id__members__user_id__patch"];
         trace?: never;
     };
+    "/projects/{project_id}/publications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Publications */
+        get: operations["list_publications_projects__project_id__publications_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{project_id}/publications/{publication_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Cancel Publication */
+        delete: operations["cancel_publication_projects__project_id__publications__publication_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/projects/{project_id}/tags": {
         parameters: {
             query?: never;
@@ -338,6 +544,69 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * ChannelCode
+         * @enum {string}
+         */
+        ChannelCode: "qiita" | "x" | "note" | "podcast";
+        /** ChannelDraftOut */
+        ChannelDraftOut: {
+            /** Applied Job Id */
+            applied_job_id: number | null;
+            /** Body */
+            body: string;
+            /** Edited After Apply */
+            edited_after_apply: boolean;
+            /** Id */
+            id: number;
+            /** Pending Job Id */
+            pending_job_id: number | null;
+            /** Source Revision No */
+            source_revision_no: number;
+            /** Tags */
+            tags: string[];
+            /** Title */
+            title: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Version */
+            version: number;
+        };
+        /**
+         * ChannelOut
+         * @description チャネルと capabilities。画面はこれを見てボタンを出し分ける（C1）。
+         */
+        ChannelOut: {
+            code: components["schemas"]["ChannelCode"];
+            /** Format */
+            format: string;
+            /** Label */
+            label: string;
+            /** Max Length */
+            max_length: number | null;
+            /** Metrics */
+            metrics: string;
+            /** Publish */
+            publish: string;
+        };
+        /**
+         * ChannelViewOut
+         * @description 公開画面の1回分（design.md §6）。
+         */
+        ChannelViewOut: {
+            channel: components["schemas"]["ChannelCode"];
+            draft: components["schemas"]["ChannelDraftOut"] | null;
+            /** Draft Is Stale */
+            draft_is_stale: boolean;
+            latest_job: components["schemas"]["ConversionJobOut"] | null;
+            /** Latest Revision No */
+            latest_revision_no: number;
+            pending_job: components["schemas"]["ConversionJobOut"] | null;
+            publication: components["schemas"]["PublicationOut"] | null;
+        };
         /** ContentCreateRequest */
         ContentCreateRequest: {
             /**
@@ -456,6 +725,96 @@ export interface components {
             /** Title */
             title?: string | null;
         };
+        /** ConversionJobOut */
+        ConversionJobOut: {
+            channel: components["schemas"]["ChannelCode"];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Error Code */
+            error_code: string | null;
+            /** Error Message */
+            error_message: string | null;
+            /** Finished At */
+            finished_at: string | null;
+            /** Id */
+            id: number;
+            /** Input Tokens */
+            input_tokens: number | null;
+            /** Model */
+            model: string;
+            /** Output Tokens */
+            output_tokens: number | null;
+            /** Profile Snapshot */
+            profile_snapshot: {
+                [key: string]: unknown;
+            };
+            /** Requested By */
+            requested_by: number;
+            /** Result Body */
+            result_body: string | null;
+            /** Result Tags */
+            result_tags: string[];
+            /** Result Title */
+            result_title: string | null;
+            /** Source Revision No */
+            source_revision_no: number;
+            /** Started At */
+            started_at: string | null;
+            status: components["schemas"]["JobStatus"];
+        };
+        /**
+         * ConversionJobSummary
+         * @description 変換の履歴の1行（結果の本文は含めない）。
+         */
+        ConversionJobSummary: {
+            channel: components["schemas"]["ChannelCode"];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Error Code */
+            error_code: string | null;
+            /** Error Message */
+            error_message: string | null;
+            /** Finished At */
+            finished_at: string | null;
+            /** Id */
+            id: number;
+            /** Model */
+            model: string;
+            /** Requested By */
+            requested_by: number;
+            /** Source Revision No */
+            source_revision_no: number;
+            /** Started At */
+            started_at: string | null;
+            status: components["schemas"]["JobStatus"];
+        };
+        /** DraftApplyRequest */
+        DraftApplyRequest: {
+            /** Expected Version */
+            expected_version: number;
+            /** Job Id */
+            job_id: number;
+        };
+        /** DraftSaveRequest */
+        DraftSaveRequest: {
+            /** Body */
+            body: string;
+            /** Expected Version */
+            expected_version: number;
+            /**
+             * Tags
+             * @default []
+             */
+            tags: string[];
+            /** Title */
+            title: string;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -496,6 +855,11 @@ export interface components {
             expires_at: string;
             role: components["schemas"]["Role"];
         };
+        /**
+         * JobStatus
+         * @enum {string}
+         */
+        JobStatus: "queued" | "running" | "succeeded" | "failed";
         /** LoginRequest */
         LoginRequest: {
             /** Email */
@@ -570,6 +934,67 @@ export interface components {
             /** Name */
             name: string;
             role: components["schemas"]["Role"];
+        };
+        /** PublicationOut */
+        PublicationOut: {
+            channel: components["schemas"]["ChannelCode"];
+            /** Content Id */
+            content_id: number;
+            /** External Id */
+            external_id: string;
+            /** Id */
+            id: number;
+            /** Last Pushed At */
+            last_pushed_at: string | null;
+            /**
+             * Published At
+             * Format: date-time
+             */
+            published_at: string;
+            /** Published By */
+            published_by: number;
+            /** Url */
+            url: string;
+            visibility: components["schemas"]["Visibility"] | null;
+        };
+        /** PublishedContentOut */
+        PublishedContentOut: {
+            /** Content Id */
+            content_id: number;
+            /** Publications */
+            publications: components["schemas"]["PublicationOut"][];
+            /** Title */
+            title: string;
+        };
+        /**
+         * QiitaAccountOut
+         * @description 登録状況だけを返す。**トークンは返さない**（C5）。
+         */
+        QiitaAccountOut: {
+            /** External User Id */
+            external_user_id?: string | null;
+            /** Registered */
+            registered: boolean;
+        };
+        /** QiitaAccountRegisterRequest */
+        QiitaAccountRegisterRequest: {
+            /**
+             * Token
+             * Format: password
+             */
+            token: string;
+        };
+        /** QiitaPublishRequest */
+        QiitaPublishRequest: {
+            /** Expected Draft Version */
+            expected_draft_version: number;
+            visibility: components["schemas"]["Visibility"];
+        };
+        /** QiitaPushRequest */
+        QiitaPushRequest: {
+            /** Expected Draft Version */
+            expected_draft_version: number;
+            visibility?: components["schemas"]["Visibility"] | null;
         };
         /**
          * RevisionKind
@@ -685,6 +1110,11 @@ export interface components {
             /** Error Type */
             type: string;
         };
+        /**
+         * Visibility
+         * @enum {string}
+         */
+        Visibility: "public" | "private";
     };
     responses: never;
     parameters: never;
@@ -787,6 +1217,37 @@ export interface operations {
             };
         };
     };
+    list_channels_channels_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChannelOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     health_health_get: {
         parameters: {
             query?: never;
@@ -834,6 +1295,101 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["InvitationAcceptOut"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_qiita_account_me_accounts_qiita_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QiitaAccountOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    register_qiita_account_me_accounts_qiita_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QiitaAccountRegisterRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QiitaAccountOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_qiita_account_me_accounts_qiita_delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -1110,6 +1666,299 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ContentOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    publish_to_qiita_projects__project_id__contents__content_id__channels_qiita_publish_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                project_id: number;
+                content_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QiitaPublishRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicationOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    push_to_qiita_projects__project_id__contents__content_id__channels_qiita_push_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                project_id: number;
+                content_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QiitaPushRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicationOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_channel_view_projects__project_id__contents__content_id__channels__channel__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                project_id: number;
+                content_id: number;
+                channel: components["schemas"]["ChannelCode"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChannelViewOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    request_conversion_projects__project_id__contents__content_id__channels__channel__conversions_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                project_id: number;
+                content_id: number;
+                channel: components["schemas"]["ChannelCode"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConversionJobOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_draft_projects__project_id__contents__content_id__channels__channel__draft_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                project_id: number;
+                content_id: number;
+                channel: components["schemas"]["ChannelCode"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DraftSaveRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChannelDraftOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    apply_pending_conversion_projects__project_id__contents__content_id__channels__channel__draft_apply_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                project_id: number;
+                content_id: number;
+                channel: components["schemas"]["ChannelCode"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DraftApplyRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChannelDraftOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_conversions_projects__project_id__contents__content_id__conversions_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                project_id: number;
+                content_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConversionJobSummary"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_conversion_projects__project_id__contents__content_id__conversions__job_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                project_id: number;
+                content_id: number;
+                job_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConversionJobOut"];
                 };
             };
             /** @description Validation Error */
@@ -1438,6 +2287,71 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["MemberRoleOut"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_publications_projects__project_id__publications_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                project_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublishedContentOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cancel_publication_projects__project_id__publications__publication_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                project_id: number;
+                publication_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
