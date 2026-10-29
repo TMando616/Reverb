@@ -61,8 +61,8 @@
 - [x] 6.3 `PublicationService.cancel`（論理削除・未取消が0件なら `mark_unpublished`）と企画の公開済み一覧
 - [x] 6.4 ルーター：`POST .../channels/qiita/publish`、`POST .../channels/qiita/push`、`DELETE /projects/{id}/publications/{pub_id}`、`GET /projects/{id}/publications`
 - [x] 6.5 ユニットテスト：editor 403 ／トークンなし 409 ／タグ0個・6個で 422 ／投稿 → 公開物 → `公開済` ／2回目の投稿 409 ／Qiita の各エラーの対応 ／更新で状態が変わらない ／取消 → `drafting`・Qiita は呼ばない ／2チャネル目がある場合は取消しても `公開済` のまま（テスト用に公開物を直接作る）
-- [ ] 6.6 API 結合テスト：変換 → ワーカーを1回回す → 原稿 → 編集 → 投稿 → 更新 → 取消。401 / 403 / 404 / 409 / 422。`test_openapi_lists_every_endpoint` に足す
-- [ ] 6.7 `ruff` / `mypy` / `lint-imports` / `pytest` 緑。OpenAPI を書き出して `frontend/types/api.ts` を生成し直す
+- [x] 6.6 API 結合テスト：変換 → ワーカーを1回回す → 原稿 → 編集 → 投稿 → 更新 → 取消。401 / 403 / 404 / 409 / 422。`test_openapi_lists_every_endpoint` に足す
+- [x] 6.7 `ruff` / `mypy` / `lint-imports` / `pytest` 緑。OpenAPI を書き出して `frontend/types/api.ts` を生成し直す
 - [ ] 6.8 **実機の確認（Qiita・限定共有）**：実際のトークンで投稿・更新して、タグ数の上限・タイトルの上限・一般公開 → 限定共有の可否を確かめ、`design.md` §10-4 を確定値に直す。確かめた記事は手で消す
 
 ## 7. 画面（`design.md` §13）
