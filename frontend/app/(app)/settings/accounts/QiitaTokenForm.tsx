@@ -25,7 +25,8 @@ export function QiitaTokenForm({ registered, userName, disabled }: Props) {
   }
 
   function remove() {
-    if (!window.confirm("Qiita のトークンを削除します。Qiita への投稿・更新ができなくなります。")) return;
+    if (!window.confirm("Qiita のトークンを削除します。Qiita への投稿・更新ができなくなります。"))
+      return;
     startTransition(async () => {
       const result = await deleteQiitaToken();
       setNotice(result.ok ? "削除しました" : result.message);

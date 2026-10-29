@@ -69,10 +69,10 @@
 
 - [x] 7.1 BFF：足すものは無いと確認（公開画面は既存の `/projects` パススルー、設定画面は Server Action。design.md §13-5 を更新）
 - [x] 7.2 `/settings/accounts`：Qiita トークンの登録・差し替え・削除（Server Component ＋ Server Action・`write_qiita` スコープの案内・登録済みならユーザー名だけ出す）
-- [ ] 7.3 `/projects/[id]/contents/[cid]/publish`：Server Component で取得 → TanStack Query に渡す。チャネルのタブ（M1 は Qiita だけ）
-- [ ] 7.4 変換：実行ボタンと送信先の明示 ／`queued` / `running` のあいだだけ `refetchInterval: 2000` ／失敗の文言（§8-3）と［再実行］
-- [ ] 7.5 原稿：タイトル・本文（CodeMirror を再利用）・タグ（1〜5個）・プレビュー（既存部品）。手動保存＋⌘S・409 の扱い ／「新しい変換結果があります」→ 結果のプレビュー ＋［この結果で置き換える］／「変換後に本文が更新されています」
-- [ ] 7.6 投稿・更新：確認ダイアログ（既定は限定共有・一般公開の注意）／未保存なら先に保存 ／成功で URL ／トークンの問題なら設定画面へのリンク ／owner 以外にはボタンを出さない
+- [x] 7.3 `/projects/[id]/contents/[cid]/publish`：Server Component で取得 → TanStack Query に渡す。チャネルのタブ（M1 は Qiita だけ）
+- [x] 7.4 変換：実行ボタンと送信先の明示 ／`queued` / `running` のあいだだけ `refetchInterval: 2000` ／失敗の文言（§8-3）と［再実行］
+- [x] 7.5 原稿：タイトル・本文（CodeMirror を再利用）・タグ（1〜5個）・プレビュー（既存部品）。手動保存＋⌘S・409 の扱い ／「新しい変換結果があります」→ 結果のプレビュー ＋［この結果で置き換える］／「変換後に本文が更新されています」
+- [x] 7.6 投稿・更新：確認ダイアログ（既定は限定共有・一般公開の注意）／未保存なら先に保存 ／成功で URL ／トークンの問題なら設定画面へのリンク ／owner 以外にはボタンを出さない
 - [ ] 7.7 公開物と取消（「Qiita 上の記事は残ります」）。`/projects/[id]/publications`（コンテンツごと・新しい順）
 - [ ] 7.8 編集画面のヘッダに［公開へ］と公開物のチャネルのバッジ。プロジェクト画面から公開済み一覧への導線
 - [ ] 7.9 `npm run lint` / `npx next typegen` / `npx tsc --noEmit` / `npm run build` 緑
