@@ -15,11 +15,13 @@ import {
   STATUS_LABELS,
   formatDateTime,
   type Content,
+  type Publication,
   type Tag,
 } from "@/lib/api/types";
 
 import { createTag } from "../../actions";
 import { MarkdownEditor } from "./MarkdownEditor";
+import { PublishLink } from "./PublishLink";
 import { RevisionPanel } from "./RevisionPanel";
 import { useContentWriter, type SaveStatus } from "./use-content-writer";
 import { useLeaveGuard } from "./use-leave-guard";
@@ -31,6 +33,7 @@ type Props = {
   initial: Content;
   tags: Tag[];
   memberNames: Record<number, string>;
+  publications: Publication[];
 };
 
 const STATUS_TEXT: Record<SaveStatus, string> = {
@@ -46,7 +49,7 @@ const STATUS_TEXT: Record<SaveStatus, string> = {
  * サーバー状態（コンテンツ）は TanStack Query のキャッシュ、編集中バッファは
  * `useContentWriter` のローカル状態。この2つを混ぜない（frontend.md §2）。
  */
-export function ContentEditor({ projectId, initial, tags, memberNames }: Props) {
+export function ContentEditor({ projectId, initial, tags, memberNames, publications }: Props) {
   const { data: content = initial } = useQuery({
     queryKey: queryKeys.content(projectId, initial.id),
     queryFn: async () => {
@@ -152,6 +155,7 @@ export function ContentEditor({ projectId, initial, tags, memberNames }: Props) 
             }))}
             emptyLabel="ここから動かせる先はありません"
           />
+          <PublishLink projectId={projectId} contentId={initial.id} publications={publications} />
         </div>
         <div className="flex items-center gap-2 text-sm" aria-live="polite">
           <span

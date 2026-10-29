@@ -6,6 +6,7 @@ import { apiFetch, type ApiResult } from "@/lib/api/server";
 import { queryKeys } from "@/lib/api/query-keys";
 import {
   canWrite,
+  type ChannelView,
   type Content,
   type Me,
   type Member,
@@ -31,14 +32,16 @@ export default async function ContentPage(props: PageProps<"/projects/[id]/conte
     notFound();
   }
 
-  const [project, content, tags, members, me] = await Promise.all([
+  const [project, content, tags, members, me, qiita] = await Promise.all([
     apiFetch<Project>(`/projects/${projectId}`),
     apiFetch<Content>(`/projects/${projectId}/contents/${contentId}`),
     apiFetch<TagWithUsage[]>(`/projects/${projectId}/tags`),
     apiFetch<Member[]>(`/projects/${projectId}/members`),
     apiFetch<Me>("/auth/me"),
+    // 公開先のバッジ用（publishing design.md §13-1）。M1 のチャネルは Qiita だけ。
+    apiFetch<ChannelView>(`/projects/${projectId}/contents/${contentId}/channels/qiita`),
   ]);
-  for (const result of [project, content, tags, members, me] as ApiResult<unknown>[]) {
+  for (const result of [project, content, tags, members, me, qiita] as ApiResult<unknown>[]) {
     if (!result.ok) {
       if (result.status === 401) redirect("/login");
       if (result.status === 404) notFound();
@@ -51,7 +54,8 @@ export default async function ContentPage(props: PageProps<"/projects/[id]/conte
       );
     }
   }
-  if (!project.ok || !content.ok || !tags.ok || !members.ok || !me.ok) return null;
+  if (!project.ok || !content.ok || !tags.ok || !members.ok || !me.ok || !qiita.ok) return null;
+  const publications = qiita.data.publication ? [qiita.data.publication] : [];
 
   const memberNames = Object.fromEntries(
     members.data.map((member) => [member.user_id, member.display_name]),
@@ -71,9 +75,15 @@ export default async function ContentPage(props: PageProps<"/projects/[id]/conte
               initial={content.data}
               tags={tags.data}
               memberNames={memberNames}
+              publications={publications}
             />
           ) : (
-            <ContentViewer projectId={projectId} content={content.data} memberNames={memberNames} />
+            <ContentViewer
+              projectId={projectId}
+              content={content.data}
+              memberNames={memberNames}
+              publications={publications}
+            />
           )}
         </HydrationBoundary>
       </QueryProvider>

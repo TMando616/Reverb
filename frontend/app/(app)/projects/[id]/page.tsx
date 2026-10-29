@@ -98,6 +98,12 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
         </div>
         <div className="flex items-center gap-3">
           <Link
+            href={`/projects/${projectId}/publications`}
+            className="text-sm text-gray-500 hover:underline"
+          >
+            公開済み
+          </Link>
+          <Link
             href={`/projects/${projectId}/tags`}
             className="text-sm text-gray-500 hover:underline"
           >

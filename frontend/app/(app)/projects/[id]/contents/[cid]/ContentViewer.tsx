@@ -5,21 +5,23 @@ import { useState } from "react";
 
 import { countChars, CHAR_COUNT_NOTE } from "@/components/contents/char-count";
 import { MarkdownPreview } from "@/components/contents/MarkdownPreview";
-import { STATUS_LABELS, type Content } from "@/lib/api/types";
+import { STATUS_LABELS, type Content, type Publication } from "@/lib/api/types";
 
+import { PublishLink } from "./PublishLink";
 import { RevisionPanel } from "./RevisionPanel";
 
 type Props = {
   projectId: number;
   content: Content;
   memberNames: Record<number, string>;
+  publications: Publication[];
 };
 
 /**
  * 閲覧画面（reviewer / demo）：プレビューと文字数、履歴の閲覧のみ（content-pipeline C5・C8）。
  * エディタは読み込まない。書き込みの API はどのみち 403 になる（frontend.md §1）。
  */
-export function ContentViewer({ projectId, content, memberNames }: Props) {
+export function ContentViewer({ projectId, content, memberNames, publications }: Props) {
   const [showHistory, setShowHistory] = useState(false);
 
   return (
@@ -32,6 +34,7 @@ export function ContentViewer({ projectId, content, memberNames }: Props) {
           {STATUS_LABELS[content.status]}
         </span>
         <span className="text-gray-500">閲覧のみ</span>
+        <PublishLink projectId={projectId} contentId={content.id} publications={publications} />
       </div>
       <h1 className="text-xl font-bold">{content.title}</h1>
       <div className="flex flex-wrap items-center gap-3 text-sm">
