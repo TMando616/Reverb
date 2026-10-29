@@ -8,4 +8,7 @@ export const queryKeys = {
   revisions: (projectId: number, contentId: number) => ["revisions", projectId, contentId] as const,
   revision: (projectId: number, contentId: number, revisionNo: number) =>
     ["revision", projectId, contentId, revisionNo] as const,
+  /** 公開画面のまとめ（publishing design.md §13-2）。M2 でジョブ進捗の SSE をここへ流し込む。 */
+  channel: (projectId: number, contentId: number, channel: string) =>
+    ["channel", projectId, contentId, channel] as const,
 };

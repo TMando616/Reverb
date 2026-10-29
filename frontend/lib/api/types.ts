@@ -28,6 +28,18 @@ export type Member = Schemas["MemberOut"];
 export type Me = Schemas["MeResponse"];
 export type InvitationAccepted = Schemas["InvitationAcceptOut"];
 
+// publishing
+export type Channel = Schemas["ChannelOut"];
+export type ChannelCode = Schemas["ChannelCode"];
+export type ChannelView = Schemas["ChannelViewOut"];
+export type ChannelDraft = Schemas["ChannelDraftOut"];
+export type ConversionJob = Schemas["ConversionJobOut"];
+export type JobStatus = Schemas["JobStatus"];
+export type Publication = Schemas["PublicationOut"];
+export type PublishedContent = Schemas["PublishedContentOut"];
+export type QiitaAccount = Schemas["QiitaAccountOut"];
+export type Visibility = Schemas["Visibility"];
+
 /** 状態の日本語ラベル。識別子は英語、表示は日本語（design.md §3-2）。 */
 export const STATUS_LABELS: Record<ContentStatus, string> = {
   inbox: "ネタ",
@@ -65,6 +77,19 @@ export const STATUS_ORDER: ContentStatus[] = [
 export function canWrite(role: Role, isDemo: boolean): boolean {
   return !isDemo && (role === "owner" || role === "editor");
 }
+
+/**
+ * 公開・更新・公開取消のボタンを出すか。owner で、かつ demo でないとき（publishing design.md §5）。
+ * これも UX のための出し分けで、防御は API の 403。
+ */
+export function canPublish(role: Role, isDemo: boolean): boolean {
+  return !isDemo && role === "owner";
+}
+
+export const VISIBILITY_LABELS: Record<Visibility, string> = {
+  private: "限定共有",
+  public: "一般公開",
+};
 
 /** 日時の表示。サーバー描画とブラウザでタイムゾーンがズレないよう固定する。 */
 const DATE_TIME = new Intl.DateTimeFormat("ja-JP", {

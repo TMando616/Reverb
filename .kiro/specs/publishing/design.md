@@ -347,7 +347,7 @@ class Converter(Protocol):
 
 ### 10-2. 登録時の確認
 
-`PUT /me/accounts/qiita` → `GET /api/v2/authenticated_user` を叩き、200 なら `id`（Qiita のユーザー名）を `external_user_id` に入れて保存。401 / 403 なら 422 `invalid_qiita_token`。書き込み権限（`write_qiita`）の有無はこの API では分からないので、**画面で「write_qiita スコープで発行してください」と案内する**。足りなければ最初の投稿が 403 になり、§10-5 の表で同じ案内を出す。
+`PUT /me/accounts/qiita` → `GET /api/v2/authenticated_user` を叩き、200 なら `id`（Qiita のユーザー名）を `external_user_id` に入れて保存。401 / 403 なら 422 `invalid_qiita_token`。書き込み権限（`write_qiita`）の有無はこの API では分からないので、**画面で「`read_qiita` と `write_qiita` のスコープで発行してください」と案内する**（`authenticated_user` 自体に `read_qiita` が要る）。足りなければ最初の投稿が 403 になり、§10-5 の表で同じ案内を出す。
 
 ### 10-3. 新規投稿の流れ（二重投稿を作らない）
 
@@ -480,7 +480,7 @@ foundation の封筒（`{ "error": { "code", "message" } }`）をそのまま使
 
 ### 13-5. BFF
 
-既存のパススルー（`app/api/projects/[...path]/route.ts`）で `/projects/...` は中継できる。**`/channels` と `/me/accounts/...` 用のパススルーを足す。** トークンの登録は Server Action からでもよいが、パススルーに揃える（BFF に業務ロジックを持たせない・ADR-0014）。
+**BFF に足すものは無い。** 公開画面がブラウザから叩くのは `/projects/...` だけで、既存のパススルー（`app/api/projects/[...path]/route.ts`）で中継できる。設定画面（`/settings/accounts`）は Server Component ＋ Server Action で、サーバーから FastAPI を呼ぶ（カンバン・タグ管理と同じ）。`/channels` と `/me/accounts/...` 用のパススルーは、ブラウザから叩く画面ができたときに足す（使わない中継を置かない）。
 
 ---
 

@@ -26,7 +26,12 @@ export default async function ProjectsPage() {
 
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-4 py-10">
-      <h1 className="text-xl font-bold">企画</h1>
+      <div className="flex items-end justify-between">
+        <h1 className="text-xl font-bold">企画</h1>
+        <Link href="/settings/accounts" className="text-sm text-gray-500 hover:underline">
+          外部アカウント
+        </Link>
+      </div>
       <CreateProjectForm />
       <ul className="flex flex-col divide-y divide-gray-200">
         {result.data.map((project) => (

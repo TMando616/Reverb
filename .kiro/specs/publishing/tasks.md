@@ -67,8 +67,8 @@
 
 ## 7. 画面（`design.md` §13）
 
-- [ ] 7.1 BFF：`/channels` と `/me/accounts/...` のパススルーを足す
-- [ ] 7.2 `/settings/accounts`：Qiita トークンの登録・差し替え・削除（Server Component ＋ Server Action・`write_qiita` スコープの案内・登録済みならユーザー名だけ出す）
+- [x] 7.1 BFF：足すものは無いと確認（公開画面は既存の `/projects` パススルー、設定画面は Server Action。design.md §13-5 を更新）
+- [x] 7.2 `/settings/accounts`：Qiita トークンの登録・差し替え・削除（Server Component ＋ Server Action・`write_qiita` スコープの案内・登録済みならユーザー名だけ出す）
 - [ ] 7.3 `/projects/[id]/contents/[cid]/publish`：Server Component で取得 → TanStack Query に渡す。チャネルのタブ（M1 は Qiita だけ）
 - [ ] 7.4 変換：実行ボタンと送信先の明示 ／`queued` / `running` のあいだだけ `refetchInterval: 2000` ／失敗の文言（§8-3）と［再実行］
 - [ ] 7.5 原稿：タイトル・本文（CodeMirror を再利用）・タグ（1〜5個）・プレビュー（既存部品）。手動保存＋⌘S・409 の扱い ／「新しい変換結果があります」→ 結果のプレビュー ＋［この結果で置き換える］／「変換後に本文が更新されています」
