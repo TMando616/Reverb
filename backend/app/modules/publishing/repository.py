@@ -317,9 +317,11 @@ class PublicationRepository:
             or 0
         )
 
-    async def list_active_in_project(self, project_id: int) -> Sequence[tuple[Publication, str]]:
+    async def list_active_in_project(
+        self, project_id: int, *, content_id: int | None = None
+    ) -> Sequence[tuple[Publication, str]]:
         """企画の取り消されていない公開物と、そのコンテンツのタイトル（新しい順）。"""
-        result = await self._session.execute(
+        stmt = (
             select(Publication, Content.title)
             .join(Content, Content.id == Publication.content_id)
             .where(
@@ -327,9 +329,17 @@ class PublicationRepository:
                 Publication.cancelled_at.is_(None),
                 Content.deleted_at.is_(None),
             )
-            .order_by(Publication.published_at.desc(), Publication.id.desc())
+        )
+        if content_id is not None:
+            stmt = stmt.where(Publication.content_id == content_id)
+        result = await self._session.execute(
+            stmt.order_by(Publication.published_at.desc(), Publication.id.desc())
         )
         return [(row[0], row[1]) for row in result.tuples()]
+
+    async def reload(self, publication: Publication) -> None:
+        """DB の今の値で読み直す（ロックを取ったあとの再確認用）。"""
+        await self._session.refresh(publication)
 
     async def flush(self) -> None:
         await self._session.flush()

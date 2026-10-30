@@ -167,7 +167,7 @@ foundation の遷移表（`ALLOWED`）には **`published` を遷移先として
 | POST | `/projects/{id}/contents/{cid}/channels/qiita/push` | PUBLISH | 公開済みの Qiita 記事を原稿で更新 `{expected_draft_version, visibility?}` | M1 |
 | POST | `/projects/{id}/contents/{cid}/publications` | PUBLISH | 貼り戻し `{channel, url}`（intent / manual） | M3 |
 | DELETE | `/projects/{id}/publications/{pub_id}` | PUBLISH | 公開取消（論理削除） | M1 |
-| GET | `/projects/{id}/publications` | VIEW | 企画の公開済み一覧（コンテンツ単位にまとめる） | M1 |
+| GET | `/projects/{id}/publications` | VIEW | 企画の公開済み一覧（コンテンツ単位にまとめる）。`?content_id=` でそのコンテンツだけ（編集画面のバッジ用） | M1 |
 | GET | `/me/accounts/qiita` | 本人 | 登録状況 `{registered, external_user_id}`。**トークンは返さない** | M1 |
 | PUT | `/me/accounts/qiita` | 本人 | 登録・差し替え `{token}`。Qiita に問い合わせて確認してから保存 | M1 |
 | DELETE | `/me/accounts/qiita` | 本人 | 削除 | M1 |
@@ -215,8 +215,10 @@ POST /conversions                         ワーカー（同じプロセスの a
 
 プロセスが ②の途中で落ちると `running` のまま残り、部分 UNIQUE のせいで**そのコンテンツ×チャネルが二度と変換できなくなる。**
 
-- ワーカーはループのたびに、`status = 'running' AND started_at < now() - 15分` の行を `failed`（`error_code = 'interrupted'`）にする
-- 15分は Claude 呼び出しのタイムアウト（§8-1 の 10分）より長くとる。生きている実行を回収しない
+- ワーカーはループのたびに、`status = 'running' AND started_at < now() - 30分` の行を `failed`（`error_code = 'interrupted'`）にする
+- 30分は変換1回の締め切り（§8-1 の 20分）より長くとる。生きている実行を回収しない
+- SDK の `timeout`（600秒）はストリーミングでは「チャンクの間隔」に効き、再試行（2回）も重なるので、それだけでは全体の長さが決まらない。**変換全体を `asyncio.timeout`（20分）で締め切る**（/code-review の指摘・2026-10-18）
+- 結果の書き込みが楽観ロック以外の理由で失敗しても、`internal_error` で失敗として記録し直す。それもできなければ回収に任せる
 
 ### 7-4. M2 での載せ替えの境界
 
@@ -248,7 +250,7 @@ POST /conversions                         ワーカー（同じプロセスの a
 | 出力の形 | **structured outputs**（`output_config.format` に JSON Schema）。`{title, body, tags}` を受け取り、Pydantic で検証 | 「本文だけ」「前置きが付く」のゆれを無くす。Qiita のタグも同時に出させる（§10-4） |
 | ストリーミング | **`messages.stream(...)` ＋ `get_final_message()`** | 記事1本分の出力は長い。スキルは長い出力にストリーミングを推奨（HTTP タイムアウト回避）。途中経過は使わない |
 | `max_tokens` | **64000** | スキルのストリーミング時の既定。思考も含めて数えるので低く置かない。打ち切られたら `stop_reason == "max_tokens"` で失敗にする |
-| タイムアウト | クライアントの `timeout = 600秒` | §7-3 の回収（15分）より短く |
+| タイムアウト | クライアントの `timeout = 600秒`（チャンクの間隔）＋ **変換全体の締め切り 20分**（`asyncio.timeout`）。締め切りを過ぎたら `upstream_unavailable` | §7-3 の回収（30分）より短く |
 | 再試行 | SDK の既定（`max_retries = 2`：429・5xx・接続エラー）だけ。**アプリ側で再試行を重ねない** | requirements §6「自動の再試行で何度も呼ばない」。失敗したらユーザーが再実行する |
 | refusal | **`fallbacks: "default"`（beta `server-side-fallback-2026-07-01`）を付ける**。それでも `stop_reason == "refusal"` なら失敗（`error_code = 'refused'`） | スキルが Opus 5.5 では既定で付けるよう求めている。記事の変換で拒否はまず起きないが、起きたときに黙って空の原稿を作らない |
 | 記録 | `usage`（入力・出力トークン）と `_request_id` をジョブの行に残す。**本文・プロンプトはログに出さない** | コストの把握と障害時の問い合わせ用 |
@@ -323,6 +325,7 @@ class Converter(Protocol):
 
 - 画面は `pending_job_id` があれば「新しい変換結果があります」と出し、**結果のプレビュー**と［この結果で置き換える］を見せる
 - 置き換えは `POST .../draft/apply {job_id, expected_version}`。手で直した原稿を持った画面が古ければ 409
+- **画面は、未保存の手直しがあるときは変換の前に原稿を保存する**（保存すると「手で直した」印が付き、結果は保留になる）。保存できなければ変換しない（/code-review の指摘・2026-10-18）
 - requirements C4 の2案（確認して上書き／結果を並べる）のうち、**結果を並べる側**を選んだ。変換は非同期なので、実行ボタンを押した時点の確認だけでは、結果が出るまでの間の手直しを守れない
 
 ### 9-3. 原稿が古いことの判定
@@ -378,7 +381,7 @@ PublicationService.publish_qiita(actor, project_id, content_id, visibility, expe
 
 | 項目 | 決定 |
 |---|---|
-| タグの出どころ | **変換で LLM に出させる**（§8-1 の `tags`）。プロンプトに企画の既存タグを渡して寄せる。原稿の画面で人が直す |
+| タグの出どころ | **変換で LLM に出させる**（§8-1 の `tags`）。プロンプトに企画の既存タグを渡して寄せる。結果を書くときに**前後の空白・空・50文字超・重複を落とし、5個までにそろえる**（そのまま保存・投稿できる原稿にする）。原稿の画面で人が直す |
 | タグの数 | **1〜5個**（Qiita の画面の制約。API ドキュメントに明記が無いので、実装時に実際に投稿して確かめる） |
 | タグの形 | Qiita の `{name, versions: []}` に変換して送る。名前の前後の空白を除き、重複を除く |
 | タイトル | 必須・空白のみ不可。長さの上限は実装時に確認する |
@@ -402,7 +405,7 @@ PublicationService.publish_qiita(actor, project_id, content_id, visibility, expe
 
 ## 11. 公開物と公開取消
 
-- 取消は `cancelled_at` / `cancelled_by` を入れるだけ。**Qiita の記事は消さない**（画面に「Qiita 上の記事は残ります」と出す）
+- 取消はコンテンツ行のロックを取ってから公開物を読み直し、まだ取り消されていなければ `cancelled_at` / `cancelled_by` を入れる（同時の取消で記録が上書きされないように）。**Qiita の記事は消さない**（画面に「Qiita 上の記事は残ります」と出す）
 - 取消のあと、取り消されていない公開物が0件なら `mark_unpublished`（`published → drafting`）
 - 取り消した公開物を元に戻す操作は作らない。必要なら貼り戻し（M3）でもう一度登録する
 - 企画の公開済み一覧：取り消されていない公開物を、コンテンツごとにまとめて新しい順に返す（`[{content: {id, title}, publications: [{channel, url, published_at}]}]`）
@@ -466,7 +469,7 @@ foundation の封筒（`{ "error": { "code", "message" } }`）をそのまま使
 ### 13-3. 変換の状態の見せ方（M1）
 
 - 実行ボタン → `POST .../conversions`（202）→ キャッシュのジョブを `queued` に差し替える
-- ジョブが `queued` / `running` のあいだだけ、**`refetchInterval: 2000`** で公開画面のまとめを取り直す。終わったら止める
+- ジョブが `queued` / `running` のあいだだけ、**`refetchInterval: 2000`** でジョブ1件（`GET .../conversions/{job_id}`）を取り直す。終わったら1回だけ公開画面のまとめを取り直す（まとめは原稿と結果の本文を含んで重いため）
 - 実行ボタンの近くに「**本文を Claude API（Anthropic）に送って変換します**」と出す（requirements §6 個人情報）
 - 失敗したら `error_code` に応じた文言（§8-3）と［再実行］
 

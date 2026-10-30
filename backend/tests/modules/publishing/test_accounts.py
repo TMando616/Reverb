@@ -8,6 +8,7 @@ from app.core.crypto import TokenCipher
 from app.core.exceptions import (
     ForbiddenError,
     InvalidQiitaTokenError,
+    MisconfiguredError,
     QiitaTokenInvalidError,
     QiitaTokenMissingError,
     QiitaUnavailableAppError,
@@ -128,3 +129,13 @@ async def test_the_token_never_reaches_the_logs(
     await accounts.service.qiita_token_for(accounts.user)
 
     assert TOKEN not in caplog.text
+
+
+async def test_registering_without_encryption_keys_is_a_clear_500(accounts: Accounts) -> None:
+    service = type(accounts.service)(accounts.repo, accounts.qiita, TokenCipher([]))
+
+    with pytest.raises(MisconfiguredError):
+        await service.register_qiita(accounts.user, TOKEN)
+
+    # 保存できないので Qiita にも問い合わせない。
+    assert accounts.qiita.tokens_seen == []

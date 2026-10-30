@@ -3836,6 +3836,22 @@
             }
           },
           {
+            "in": "query",
+            "name": "content_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Content Id"
+            }
+          },
+          {
             "in": "header",
             "name": "authorization",
             "required": false,

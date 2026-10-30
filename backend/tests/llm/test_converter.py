@@ -4,6 +4,7 @@
 各例外が ``error_code`` に写ることと、送るパラメータだけを確かめる。
 """
 
+import asyncio
 import json
 from types import SimpleNamespace
 from typing import Any
@@ -175,3 +176,32 @@ async def test_other_type_errors_are_not_swallowed() -> None:
 
     with pytest.raises(TypeError, match="a bug"):
         await converter.convert(REQUEST)
+
+
+async def test_a_conversion_past_the_deadline_is_upstream_unavailable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import app.llm.converter as module
+
+    class _SlowStream(_Stream):
+        async def get_final_message(self) -> Any:
+            await asyncio.sleep(1)
+            return _message()
+
+    class _SlowClient(_FakeClient):
+        def __init__(self) -> None:
+            super().__init__(None)
+
+            class _Messages:
+                def stream(self, **kwargs: Any) -> _Stream:
+                    return _SlowStream(None)
+
+            self.beta = SimpleNamespace(messages=_Messages())
+
+    monkeypatch.setattr(module, "CONVERSION_DEADLINE_SECONDS", 0.01)
+    converter = ClaudeConverter(_SlowClient(), model="m", effort="medium")  # type: ignore[arg-type]
+
+    with pytest.raises(ConversionFailed) as excinfo:
+        await converter.convert(REQUEST)
+
+    assert excinfo.value.error_code == "upstream_unavailable"

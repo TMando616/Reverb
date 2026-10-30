@@ -2301,7 +2301,9 @@ export interface operations {
     };
     list_publications_projects__project_id__publications_get: {
         parameters: {
-            query?: never;
+            query?: {
+                content_id?: number | null;
+            };
             header?: {
                 authorization?: string | null;
             };

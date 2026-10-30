@@ -11,6 +11,9 @@ function message(status: number, code: string): string {
   if (code === "invalid_qiita_token") {
     return "Qiita がこのトークンを受け付けませんでした。write_qiita スコープで発行したか確認してください";
   }
+  if (code === "misconfigured") {
+    return "サーバーの設定（トークンを暗号化する鍵）が足りないため登録できません。管理者に連絡してください";
+  }
   if (code === "qiita_unavailable" || code === "qiita_rate_limited") {
     return "Qiita に確認できませんでした。少し待ってからもう一度試してください";
   }

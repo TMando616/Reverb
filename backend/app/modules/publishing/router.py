@@ -213,9 +213,12 @@ async def push_to_qiita(
 
 @publications_router.get("", response_model=list[schemas.PublishedContentOut])
 async def list_publications(
-    project_id: int, actor: CurrentActor, service: PublicationServiceDep
+    project_id: int,
+    actor: CurrentActor,
+    service: PublicationServiceDep,
+    content_id: int | None = None,
 ) -> list[schemas.PublishedContentOut]:
-    entries = await service.list_for_project(actor, project_id)
+    entries = await service.list_for_project(actor, project_id, content_id=content_id)
     return [schemas.PublishedContentOut.from_entry(entry) for entry in entries]
 
 

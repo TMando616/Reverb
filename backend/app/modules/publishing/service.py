@@ -17,6 +17,7 @@ from app.core.exceptions import (
     AppError,
     InvalidDraftError,
     InvalidQiitaTokenError,
+    MisconfiguredError,
     NotFoundError,
     PublicationExistsError,
     QiitaItemMissingError,
@@ -63,9 +64,14 @@ from app.modules.publishing.repository import (
 
 logger = logging.getLogger("app.publishing")
 
-# running のまま止まった行を回収するまでの時間。Claude 呼び出しのタイムアウト（10分）より
-# 長くとり、生きている実行を回収しない（design.md §7-3）。
-STUCK_AFTER = timedelta(minutes=15)
+# running のまま止まった行を回収するまでの時間。変換1回の締め切り（converter の
+# CONVERSION_DEADLINE＝20分。SDK の再試行も含めた全体）より長くとり、生きている実行を
+# 回収しない（design.md §7-3）。
+STUCK_AFTER = timedelta(minutes=30)
+
+# Qiita のタグ数（画面の制約。API ドキュメントに明記が無いので実機で確かめる・design.md §10-4）。
+QIITA_MIN_TAGS = 1
+QIITA_MAX_TAGS = 5
 
 
 def qiita_app_error(exc: QiitaError) -> AppError:
@@ -101,6 +107,12 @@ class AccountService:
     async def register_qiita(self, actor: Actor, token: str) -> ChannelAccount:
         """Qiita に問い合わせて有効なトークンだけを暗号化して保存する。"""
         require_not_demo(actor)
+        # 鍵が無ければ Qiita に問い合わせる前に止める（保存できないトークンを確かめても無駄）。
+        try:
+            encrypted = self._cipher.encrypt(token)
+        except TokenUnavailableError:
+            logger.error("TOKEN_ENCRYPTION_KEYS is not set; cannot store qiita tokens")
+            raise MisconfiguredError("token encryption is not configured") from None
         try:
             external_user_id = await self._qiita.authenticated_user(token)
         except (QiitaAuthError, QiitaRejectedError, QiitaNotFoundError):
@@ -110,7 +122,7 @@ class AccountService:
         return await self._accounts.upsert(
             user_id=actor.user_id,
             channel=ChannelCode.QIITA,
-            encrypted_token=self._cipher.encrypt(token),
+            encrypted_token=encrypted,
             external_user_id=external_user_id,
         )
 
@@ -142,6 +154,21 @@ def _apply_job(draft: ChannelDraft, job: ConversionJob) -> None:
     draft.applied_job_id = job.id
     draft.pending_job_id = None
     draft.edited_after_apply = False
+
+
+# 原稿に入れるタグの形（schemas.DraftTag と同じ上限）。LLM の出力をそのまま入れると、
+# 手で直さずに保存・投稿できない原稿になるため、反映するときにそろえる。
+DRAFT_TAG_MAX_LENGTH = 50
+
+
+def normalize_tags(tags: Sequence[str]) -> list[str]:
+    """前後の空白を除き、空・長すぎるもの・重複を落として、Qiita の上限（5個）までにする。"""
+    seen: list[str] = []
+    for raw in tags:
+        tag = str(raw).strip()
+        if tag and len(tag) <= DRAFT_TAG_MAX_LENGTH and tag not in seen:
+            seen.append(tag)
+    return seen[:QIITA_MAX_TAGS]
 
 
 @dataclass(frozen=True, slots=True)
@@ -275,7 +302,7 @@ class ConversionService:
         job.finished_at = datetime.now(UTC)
         job.result_title = output.title
         job.result_body = output.body
-        job.result_extra = {"tags": output.tags}
+        job.result_extra = {"tags": normalize_tags(output.tags)}
         job.request_id = output.request_id
         job.input_tokens = output.input_tokens
         job.output_tokens = output.output_tokens
@@ -457,11 +484,6 @@ def _check_version(current: int, expected: int) -> None:
         raise VersionConflictError()
 
 
-# Qiita のタグ数（画面の制約。API ドキュメントに明記が無いので実機で確かめる・design.md §10-4）。
-QIITA_MIN_TAGS = 1
-QIITA_MAX_TAGS = 5
-
-
 @dataclass(frozen=True, slots=True)
 class PublishedContent:
     """企画の公開済み一覧の1行（コンテンツ単位にまとめる・design.md §11）。"""
@@ -589,18 +611,26 @@ class PublicationService:
         publication = await self._publications.get_in_project(publication_id, project_id)
         if publication is None or publication.cancelled_at is not None:
             raise NotFoundError("publication")
-        # 同じコンテンツの公開と取消を直列化する。
+        # 同じコンテンツの公開と取消を直列化する。ロックを待つ間に別のリクエストが
+        # 取り消しているかもしれないので、ロックを取ってから読み直して確かめる。
         content = await self._contents.lock_for_publish(actor, project_id, publication.content_id)
+        await self._publications.reload(publication)
+        if publication.cancelled_at is not None:
+            raise NotFoundError("publication")
         publication.cancelled_at = datetime.now(UTC)
         publication.cancelled_by = actor.user_id
         await self._publications.flush()
         if await self._publications.count_active(content.id) == 0:
             await self._contents.mark_unpublished(actor, content)
 
-    async def list_for_project(self, actor: Actor, project_id: int) -> list[PublishedContent]:
+    async def list_for_project(
+        self, actor: Actor, project_id: int, *, content_id: int | None = None
+    ) -> list[PublishedContent]:
+        """``content_id`` を渡すと、そのコンテンツの公開物だけ（編集画面のバッジ用）。"""
         await self._authz.require(actor, project_id, Permission.CONTENT_VIEW)
         grouped: dict[int, PublishedContent] = {}
-        for publication, title in await self._publications.list_active_in_project(project_id):
+        rows = await self._publications.list_active_in_project(project_id, content_id=content_id)
+        for publication, title in rows:
             # 新しい順に来るので、最初に出たコンテンツほど上に並ぶ。
             entry = grouped.setdefault(
                 publication.content_id, PublishedContent(publication.content_id, title, [])

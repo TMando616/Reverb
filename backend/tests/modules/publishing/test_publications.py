@@ -31,6 +31,7 @@ from app.modules.publishing.ports import (
     QiitaRejectedError,
     QiitaUnavailableError,
 )
+from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from tests.modules.publishing.conftest import Publishing
@@ -357,3 +358,37 @@ async def test_the_project_list_groups_by_content_and_hides_cancelled(p: Publish
 
     assert [e.content_id for e in entries] == [third.id, first.id]
     assert [pub.channel for pub in entries[0].publications] == ["qiita"]
+
+
+async def test_a_cancel_that_lost_the_race_is_404_and_keeps_the_first_record(
+    p: Publishing,
+) -> None:
+    content, draft = await _ready(p)
+    publication = await _publish(p, content, draft)
+    # 別のリクエストが先に取り消した（この画面が持っているオブジェクトは古いまま）。
+    first = datetime(2026, 1, 1, tzinfo=UTC)
+    await p.session.execute(
+        update(Publication)
+        .where(Publication.id == publication.id)
+        .values(cancelled_at=first, cancelled_by=p.world.owner.user_id)
+        .execution_options(synchronize_session=False)
+    )
+    assert publication.cancelled_at is None
+
+    with pytest.raises(NotFoundError):
+        await p.publications.cancel(p.world.owner, p.world.project, publication.id)
+
+    assert publication.cancelled_at == first
+
+
+async def test_the_list_can_be_narrowed_to_one_content(p: Publishing) -> None:
+    first, first_draft = await _ready(p)
+    await _publish(p, first, first_draft)
+    second, second_draft = await _ready(p)
+    await _publish(p, second, second_draft)
+
+    entries = await p.publications.list_for_project(
+        p.world.reviewer, p.world.project, content_id=second.id
+    )
+
+    assert [e.content_id for e in entries] == [second.id]

@@ -182,7 +182,7 @@ async def test_stuck_jobs_are_reaped_and_late_results_dropped(p: Publishing) -> 
     await p.session.execute(
         update(ConversionJob)
         .where(ConversionJob.id == job.id)
-        .values(started_at=datetime.now(UTC) - timedelta(minutes=16))
+        .values(started_at=datetime.now(UTC) - timedelta(minutes=31))
     )
 
     assert await p.conversions.reap_stuck() == 1
@@ -264,3 +264,35 @@ async def test_a_job_of_another_content_is_not_found(p: Publishing) -> None:
 
     with pytest.raises(NotFoundError):
         await p.conversions.get_job(p.world.owner, p.world.project, other.id, job.id)
+
+
+async def test_model_tags_are_normalized_before_reaching_the_draft(p: Publishing) -> None:
+    content = await p.content()
+    p.converter.output = ConversionOutput(
+        title="T",
+        body="B",
+        tags=[" Python ", "Python", "", "x" * 51, "A", "B", "C", "D", "E"],
+    )
+    await _request(p, content)
+
+    await _work(p)
+
+    draft = await _draft(p, content)
+    assert draft is not None
+    assert draft.extra == {"tags": ["Python", "A", "B", "C", "D"]}
+
+
+async def test_a_failure_while_recording_the_result_marks_the_job_failed(
+    p: Publishing, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    content = await p.content()
+    job = await _request(p, content)
+
+    async def broken(job_id: int, output: ConversionOutput) -> None:
+        raise RuntimeError("db went away")
+
+    monkeypatch.setattr(p.conversions, "complete", broken)
+    await _work(p)
+
+    await p.session.refresh(job)
+    assert (job.status, job.error_code) == (JobStatus.FAILED, "internal_error")

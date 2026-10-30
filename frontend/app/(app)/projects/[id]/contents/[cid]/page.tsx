@@ -7,11 +7,11 @@ import { queryKeys } from "@/lib/api/query-keys";
 import {
   canWrite,
   type Channel,
-  type ChannelView,
   type Content,
   type Me,
   type Member,
   type Project,
+  type PublishedContent,
   type TagWithUsage,
 } from "@/lib/api/types";
 
@@ -33,18 +33,17 @@ export default async function ContentPage(props: PageProps<"/projects/[id]/conte
     notFound();
   }
 
-  const [project, content, tags, members, me, qiita, channels] = await Promise.all([
+  const [project, content, tags, members, me, published, channels] = await Promise.all([
     apiFetch<Project>(`/projects/${projectId}`),
     apiFetch<Content>(`/projects/${projectId}/contents/${contentId}`),
     apiFetch<TagWithUsage[]>(`/projects/${projectId}/tags`),
     apiFetch<Member[]>(`/projects/${projectId}/members`),
     apiFetch<Me>("/auth/me"),
-    // 公開先のバッジ用（publishing design.md §13-1）。M1 のチャネルは Qiita だけ。
-    apiFetch<ChannelView>(`/projects/${projectId}/contents/${contentId}/channels/qiita`),
+    // 公開先のバッジ用（publishing design.md §13-1）。チャネル名を指定せず、公開物だけを引く。
+    apiFetch<PublishedContent[]>(`/projects/${projectId}/publications?content_id=${contentId}`),
     apiFetch<Channel[]>("/channels"),
   ]);
-  const results = [project, content, tags, members, me, qiita, channels] as ApiResult<unknown>[];
-  for (const result of results) {
+  for (const result of [project, content, tags, members, me] as ApiResult<unknown>[]) {
     if (!result.ok) {
       if (result.status === 401) redirect("/login");
       if (result.status === 404) notFound();
@@ -57,19 +56,12 @@ export default async function ContentPage(props: PageProps<"/projects/[id]/conte
       );
     }
   }
-  if (
-    !project.ok ||
-    !content.ok ||
-    !tags.ok ||
-    !members.ok ||
-    !me.ok ||
-    !qiita.ok ||
-    !channels.ok
-  ) {
-    return null;
-  }
-  const publications = qiita.data.publication ? [qiita.data.publication] : [];
-  const channelLabels = Object.fromEntries(channels.data.map((c) => [c.code, c.label]));
+  if (!project.ok || !content.ok || !tags.ok || !members.ok || !me.ok) return null;
+  // バッジは付け足しの表示なので、取れなくても編集画面は開く。
+  const publications = published.ok ? published.data.flatMap((entry) => entry.publications) : [];
+  const channelLabels = channels.ok
+    ? Object.fromEntries(channels.data.map((c) => [c.code, c.label]))
+    : {};
 
   const memberNames = Object.fromEntries(
     members.data.map((member) => [member.user_id, member.display_name]),

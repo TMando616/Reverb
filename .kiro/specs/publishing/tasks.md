@@ -83,7 +83,7 @@
 - [x] 8.2 README に「Qiita に投稿できたのに記録が無いとき」の手順（`design.md` §10-3）と、`TOKEN_ENCRYPTION_KEYS` の作り方・差し替え方を書く。CLAUDE.md のコマンドが増えていれば追記
 - [x] 8.3 `requirements.md` の M1 の受け入れ条件にチェックを入れ、テストとの対応を `acceptance-trace.md` に残す
 - [x] 8.4 steering / `requirements-overview.md` §13 を更新
-- [ ] 8.5 `/code-review` を実施し、指摘を修正
+- [x] 8.5 `/code-review` を実施し、指摘を修正
 
 ---
 

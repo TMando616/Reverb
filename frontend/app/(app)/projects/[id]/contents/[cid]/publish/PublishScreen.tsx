@@ -72,9 +72,30 @@ export function PublishScreen(props: Props) {
       if (!result.ok) throw new Error(result.message);
       return result.data;
     },
-    // 変換が待機中・実行中のあいだだけ取り直す。終わったら止まる。
-    refetchInterval: (query) => (isActive(query.state.data?.latest_job) ? POLL_MS : false),
   });
+
+  // 変換が待機中・実行中のあいだは、ジョブ1件だけを取り直す（まとめ全体は本文を含んで重い）。
+  // 終わったら1回だけまとめを取り直して、原稿と結果を出す。
+  const activeJobId = isActive(view.latest_job) ? (view.latest_job?.id ?? null) : null;
+  const { data: polledJob } = useQuery({
+    queryKey: [...key, "job", activeJobId],
+    queryFn: async () => {
+      const result = await bffFetch<ConversionJob>(`${base}/conversions/${activeJobId}`);
+      if (!result.ok) throw new Error(result.message);
+      return result.data;
+    },
+    enabled: activeJobId !== null,
+    refetchInterval: (query) =>
+      query.state.data === undefined || isActive(query.state.data) ? POLL_MS : false,
+  });
+  const polledStatus = polledJob?.status;
+  useEffect(() => {
+    if (polledStatus !== undefined && polledStatus !== "queued" && polledStatus !== "running") {
+      void queryClient.invalidateQueries({ queryKey: key, exact: true });
+    }
+    // key は毎回作り直される配列なので依存に入れない（中身は props だけで決まる）。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [polledStatus, queryClient]);
 
   const writer = useChannelDraft(projectId, contentId, CHANNEL, view.draft ?? null);
   const { buffer, setBuffer, dirty } = writer;
@@ -84,6 +105,8 @@ export function PublishScreen(props: Props) {
   const [mode, setMode] = useState<"edit" | "preview">("edit");
   const [busy, setBusy] = useState(false);
   const [publishOpen, setPublishOpen] = useState(false);
+  // 開くたびにダイアログを作り直し、公開範囲を既定（限定共有）に戻す。
+  const [publishDialogKey, setPublishDialogKey] = useState(0);
 
   // 変換が失敗で終わった瞬間に、理由を通知欄にも出す（描画中に前回の状態と比べる）。
   const jobStatus = view.latest_job?.status;
@@ -113,6 +136,9 @@ export function PublishScreen(props: Props) {
 
   async function convert() {
     setBusy(true);
+    // 未保存の手直しを先に保存する。保存すると「手で直した」印が付き、再変換の結果は
+    // 原稿を置き換えずに保留になる（design.md §9-2）。保存できなければ変換しない。
+    if (dirty && (await saveBeforeSending()) === null) return setBusy(false);
     const result = await bffFetch<ConversionJob>(`${base}/channels/${CHANNEL}/conversions`, {
       method: "POST",
     });
@@ -477,7 +503,10 @@ export function PublishScreen(props: Props) {
             )}
             <button
               type="button"
-              onClick={() => setPublishOpen(true)}
+              onClick={() => {
+                setPublishDialogKey((k) => k + 1);
+                setPublishOpen(true);
+              }}
               disabled={busy || buffer === null}
               className="self-start rounded bg-gray-900 px-3 py-1 text-white disabled:opacity-50"
             >
@@ -492,6 +521,7 @@ export function PublishScreen(props: Props) {
       </section>
 
       <PublishDialog
+        key={publishDialogKey}
         open={publishOpen}
         onOpenChange={setPublishOpen}
         busy={busy}
@@ -509,17 +539,10 @@ function PublishDialog(props: {
   dirty: boolean;
   onPublish: (visibility: Visibility) => Promise<void>;
 }) {
-  // 既定は限定共有（design.md §13-4）。開くたびに戻す。
+  // 既定は限定共有（design.md §13-4）。開くたびに呼び出し側が key を変えて作り直す。
   const [visibility, setVisibility] = useState<Visibility>("private");
   return (
-    <Dialog
-      open={props.open}
-      onOpenChange={(open) => {
-        if (open) setVisibility("private");
-        props.onOpenChange(open);
-      }}
-      title="Qiita に投稿"
-    >
+    <Dialog open={props.open} onOpenChange={props.onOpenChange} title="Qiita に投稿">
       <fieldset className="flex flex-col gap-2 text-sm">
         <legend className="mb-1 text-gray-700">公開範囲</legend>
         {(["private", "public"] as const).map((value) => (

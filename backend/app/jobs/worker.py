@@ -52,27 +52,49 @@ async def run_once(
     except ConversionFailed as failure:
         result = failure
     except Exception:
-        # 想定外でもジョブを running のまま残さない（回収まで15分待たせない）。
+        # 想定外でもジョブを running のまま残さない（回収まで30分待たせない）。
         logger.exception("conversion job %s crashed", claimed.job_id)
         result = ConversionFailed("internal_error", "unexpected error during conversion")
 
     # 原稿の保存と同時に反映しようとすると楽観ロックで負ける。読み直してもう1回だけ試す
     # （2回目は「手で直した」を見て保留にする）。
+    try:
+        await _write_result(sessions, build, claimed.job_id, result)
+    except Exception:
+        # それ以外の DB の失敗でも running のまま残さない（回収まで30分待たせない）。
+        # 失敗の記録もできなければ、最後は回収に任せる。
+        logger.exception("could not record the result of conversion job %s", claimed.job_id)
+        unrecorded = ConversionFailed("internal_error", "could not record the conversion result")
+        try:
+            await _write_result(sessions, build, claimed.job_id, unrecorded)
+        except Exception:
+            logger.exception("could not mark conversion job %s as failed", claimed.job_id)
+    return True
+
+
+async def _write_result(
+    sessions: SessionFactory,
+    build: ServiceFactory,
+    job_id: int,
+    result: ConversionOutput | ConversionFailed,
+) -> None:
     for attempt in range(2):
         async with sessions() as session:
             service = build(session)
             try:
                 if isinstance(result, ConversionFailed):
-                    await service.fail(claimed.job_id, result)
+                    await service.fail(job_id, result)
                 else:
-                    await service.complete(claimed.job_id, result)
+                    await service.complete(job_id, result)
                 await session.commit()
-                break
+                return
             except VersionConflictError:
                 await session.rollback()
                 if attempt == 1:
                     raise
-    return True
+            except Exception:
+                await session.rollback()
+                raise
 
 
 async def run_forever(sessions: SessionFactory, converter: Converter) -> None:

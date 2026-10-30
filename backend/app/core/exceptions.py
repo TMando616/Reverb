@@ -106,6 +106,16 @@ class ConversionInProgressError(AppError):
         super().__init__(message)
 
 
+class MisconfiguredError(AppError):
+    """サーバーの設定が足りない（TOKEN_ENCRYPTION_KEYS が空など）。値は出さない。"""
+
+    status = 500
+    code = "misconfigured"
+
+    def __init__(self, message: str = "the server is not configured for this operation") -> None:
+        super().__init__(message)
+
+
 class UnsupportedChannelError(AppError):
     """このチャネルでは、その操作がまだできない（M1 で変換できるのは Qiita だけ等）。"""
 

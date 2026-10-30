@@ -22,7 +22,7 @@
 | 条件 | 判定 | 根拠 |
 |---|---|---|
 | チャネルは `publish`・`format`・`max_length` を capabilities として持つ | ✅ | `app/channels/capabilities.py`。`tests/api/test_publishing_flow.py::test_convert_edit_publish_push_and_cancel`（`/channels` の Qiita が `auto`） |
-| 公開の分岐は capabilities を見て決まり、画面・Service にチャネル名での分岐を書かない | 🔶 | Service は `_require_auto`（`CAPABILITIES[ch].publish`）で分岐。画面の公開先バッジは `/channels` の表示名を使う（`E/PublishLink.tsx`）。**M1 の公開画面は Qiita のタブ固定**（`E/publish/PublishScreen.tsx` の `CHANNEL`）で、X を足すときに capabilities からタブとボタンを出し分ける |
+| 公開の分岐は capabilities を見て決まり、画面・Service にチャネル名での分岐を書かない | 🔶 | Service は `_require_auto`（`CAPABILITIES[ch].publish`）で分岐。画面の公開先バッジは、チャネルを指定しない公開物の一覧（`?content_id=`）と `/channels` の表示名を使う（`E/page.tsx`・`E/PublishLink.tsx`）。**M1 の公開画面は Qiita のタブ固定**（`E/publish/PublishScreen.tsx` の `CHANNEL`）で、X を足すときに capabilities からタブとボタンを出し分ける |
 | Qiita は `auto`。新規投稿と更新を API で行う | ✅ | `P/test_publications.py::test_publishing_records_the_publication_and_marks_published` / `test_push_updates_the_item_without_changing_the_state`、`tests/channels/test_qiita_client.py` |
 | チャネル一覧を API で取得できる | ✅ | `test_publishing_flow.py::test_convert_edit_publish_push_and_cancel`、`tests/api/test_openapi.py` |
 
@@ -54,7 +54,7 @@
 |---|---|---|
 | 変換が成功すると、チャネル原稿が作られる（Qiita ならタグ） | ✅ | `P/test_conversions.py::test_worker_converts_the_requested_revision_and_creates_the_draft` |
 | owner / editor は原稿を編集・保存できる。楽観ロックで 409 | ✅ | `P/test_drafts.py::test_saving_marks_the_draft_as_hand_edited` / `test_saving_a_stale_version_is_409` / `test_reviewer_and_demo_cannot_edit` |
-| 再変換で手直しが黙って消えない | ✅ | 置き換えずに保留し、結果を並べて選ばせる（design.md §9-2）。`P/test_conversions.py::test_reconversion_keeps_a_hand_edited_draft_and_holds_the_result`、`P/test_drafts.py::test_the_pending_result_is_shown_and_can_be_applied` / `test_applying_a_result_that_is_no_longer_pending_is_409` |
+| 再変換で手直しが黙って消えない | ✅ 🖐 | 置き換えずに保留し、結果を並べて選ばせる（design.md §9-2）。未保存の手直しは、画面が変換の前に保存する（`PublishScreen.tsx` の `convert`）。`P/test_conversions.py::test_reconversion_keeps_a_hand_edited_draft_and_holds_the_result`、`P/test_drafts.py::test_the_pending_result_is_shown_and_can_be_applied` / `test_applying_a_result_that_is_no_longer_pending_is_409` |
 | 原稿が変換元の本文より古いことが画面で分かる | ✅ 🖐 | `P/test_drafts.py::test_the_draft_becomes_stale_only_when_the_body_changes`（状態遷移では古くならない）。表示：`PublishScreen.tsx` の警告 |
 | 公開するのはチャネル原稿で、`contents.body_md` は変換・公開で書き換わらない | ✅ | `test_publishing_flow.py::test_convert_edit_publish_push_and_cancel` の最後（一連の操作のあとも `body_md` が元のまま）、`P/test_publications.py::test_publishing_records_...`（送ったのは原稿のタイトル） |
 | 原稿のプレビューは HTML をサニタイズして描画する | 🖐 | content-pipeline の `MarkdownPreview`（`rehype-raw` なし）をそのまま使う |
@@ -107,12 +107,12 @@
 | Claude API・Qiita API はテストで実際に呼ばない（fake で成功・失敗・タイムアウト） | ✅ | `P/fakes.py`（`FakeConverter` / `FakeQiita`）、`test_converter.py`（SDK のクライアントを差し替え）、`test_qiita_client.py`（`httpx.MockTransport`・タイムアウト） |
 | API の結合テスト（主経路と 401 / 403 / 404 / 409 / 422） | ✅ | `tests/api/test_publishing_flow.py`、`tests/api/test_qiita_account_api.py` |
 | 新しい Service も HTTP に依存せず、MCP / ジョブから同じ認可で呼べる | ✅ | `lint-imports`（6契約。publishing の Service がポートだけを知る契約と、ジョブが Repository を叩かない契約を追加）。ワーカーは依頼した人として同じ認可を通る（`test_a_requester_who_lost_access_fails_the_job`） |
-| `ruff` / `mypy` / `lint-imports` / `lint` / `tsc` / `build` が CI で緑 | 🔶 | **ローカルでは全部緑**（pytest 356）。CI の結果は `gh` の認証が切れていて確認できていない |
+| `ruff` / `mypy` / `lint-imports` / `lint` / `tsc` / `build` が CI で緑 | 🔶 | **ローカルでは全部緑**（pytest 362）。CI の結果は `gh` の認証が切れていて確認できていない |
 | 手動確認（M1 の判定） | ❌ | **未実施。** 実際の Qiita トークンと Anthropic の API キーが要る（tasks.md 6.8 / 8.1） |
 
 ---
 
 ## 集計
 
-- 【M1】の条件 53 項目：✅ 40、✅＋🖐 4、✅＋🔶 1、🖐 3、🔶 4、❌ 1
+- 【M1】の条件 53 項目：✅ 39、✅＋🖐 5、✅＋🔶 1、🖐 3、🔶 4、❌ 1
 - 残っているもの：手動確認（8.1）と Qiita の実機確認（6.8）。どちらも外部の本物のアカウントを使うので、本人が行う

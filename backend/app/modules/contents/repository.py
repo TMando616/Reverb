@@ -333,14 +333,7 @@ class RevisionRepository:
         同じコンテンツへの並行保存は ``contents`` の楽観ロックで先に1つに絞られるので、
         ``MAX + 1`` が衝突することは通常ない。すり抜けたら UNIQUE が落とし、409 にする。
         """
-        next_no = (
-            await self._session.scalar(
-                select(func.coalesce(func.max(ContentRevision.revision_no), 0)).where(
-                    ContentRevision.content_id == content.id
-                )
-            )
-            or 0
-        ) + 1
+        next_no = await self.latest_no(content.id) + 1
         revision = ContentRevision(
             content_id=content.id,
             revision_no=next_no,

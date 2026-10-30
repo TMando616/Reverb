@@ -11,6 +11,7 @@
 - 本文・プロンプトはログにも例外にも出さない
 """
 
+import asyncio
 import json
 import logging
 from typing import Literal
@@ -27,6 +28,10 @@ logger = logging.getLogger("app.llm")
 FALLBACK_BETA = "server-side-fallback-2026-07-01"
 MAX_TOKENS = 64_000
 TIMEOUT_SECONDS = 600.0
+# 変換1回の全体の締め切り。SDK の timeout はストリーミングでは「チャンクの間隔」に効き、
+# 再試行（既定2回）も重なるので、それだけでは全体の長さが決まらない。ワーカーの回収
+# （service.STUCK_AFTER＝30分）より短くして、生きている実行が回収されないようにする。
+CONVERSION_DEADLINE_SECONDS = 20 * 60
 
 Effort = Literal["low", "medium", "high", "xhigh", "max"]
 
@@ -45,18 +50,21 @@ class ClaudeConverter:
 
     async def convert(self, request: ConversionInput) -> ConversionOutput:
         try:
-            async with self._client.beta.messages.stream(
-                model=self._model,
-                max_tokens=MAX_TOKENS,
-                system=build_system(request),
-                messages=[{"role": "user", "content": build_user(request)}],
-                output_config={
-                    "effort": self._effort,
-                    "format": {"type": "json_schema", "schema": OUTPUT_SCHEMA},
-                },
-                betas=[FALLBACK_BETA],
-                fallbacks="default",
-            ) as stream:
+            async with (
+                asyncio.timeout(CONVERSION_DEADLINE_SECONDS),
+                self._client.beta.messages.stream(
+                    model=self._model,
+                    max_tokens=MAX_TOKENS,
+                    system=build_system(request),
+                    messages=[{"role": "user", "content": build_user(request)}],
+                    output_config={
+                        "effort": self._effort,
+                        "format": {"type": "json_schema", "schema": OUTPUT_SCHEMA},
+                    },
+                    betas=[FALLBACK_BETA],
+                    fallbacks="default",
+                ) as stream,
+            ):
                 message = await stream.get_final_message()
         # 具体的な例外から順に捕まえる（RateLimitError も APIStatusError の子）。
         except anthropic.RateLimitError as exc:
@@ -78,6 +86,8 @@ class ClaudeConverter:
             raise ConversionFailed(
                 code, f"api returned {exc.status_code}", exc.request_id
             ) from None
+        except TimeoutError:
+            raise ConversionFailed("upstream_unavailable", "the conversion took too long") from None
         except anthropic.APIConnectionError:
             # APITimeoutError もここ（APIConnectionError の子）。
             raise ConversionFailed("upstream_unavailable", "could not reach the api") from None
