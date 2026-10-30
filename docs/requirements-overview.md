@@ -501,9 +501,13 @@ ingest_jobs / job_runs    取得ジョブ・リトライ・エラー履歴
 
 - [x] ORM の選定 → **SQLAlchemy 2.0**（ADR-0002）
 - [ ] 非同期ジョブ基盤の選定（Celery / ARQ / Dramatiq / Taskiq）→ ADR-0013（M2 着手前まで）
+  - M1 のチャネル変換は基盤なしで DB キュー＋常駐ワーカーで回す → **ADR-0017**。M2 で基盤を決めたら `app/jobs/worker.py` だけを書き直す
 - [ ] AWS の構成と**月額コストの見積り**（ECS Fargate / Lightsail / EC2 のどれにするか）→ ADR-0003
 - [x] エディタの選定 → **CodeMirror 6**（ADR-0016）
 - [x] スタイリングとデータフェッチ層の選定 → **Tailwind CSS ／ 編集画面だけ TanStack Query**（ADR-0015）
+- [x] チャネル変換の LLM 呼び出し → **`claude-opus-5-5`・effort medium・ストリーミング・structured outputs・`fallbacks: "default"`**（publishing design.md §8）
+- [x] Qiita トークンの暗号化 → **Fernet / MultiFernet、鍵は `TOKEN_ENCRYPTION_KEYS`**（publishing design.md §10-1）
+- [ ] Qiita API の制約（タグ数の上限・タイトル長・一般公開 → 限定共有の可否）の実機確認 → publishing tasks.md 6.8
 - [ ] X / Instagram の API 現行仕様の確認（実装時）
 
 ---

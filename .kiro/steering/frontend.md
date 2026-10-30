@@ -121,8 +121,9 @@ frontend/
 ## 7. 未決事項
 
 - [x] スタイリング → **Tailwind CSS**（ADR-0015）。バージョンごとの設定の作法は `frontend/node_modules/` を見て確定する
-- [x] データフェッチ層 → **編集画面にだけ TanStack Query を採用**（ADR-0015 追記）。カンバンなどプッシュが来ない画面は
-  Server Component ＋ Server Action のまま。編集中バッファはキャッシュに入れない（§2）
+- [x] データフェッチ層 → **プッシュが来る画面にだけ TanStack Query を採用**（ADR-0015 追記）。今は編集画面と公開画面
+  （M2 でジョブ進捗の SSE が来る・publishing design.md §13-2。M1 は `refetchInterval` で取り直す）。カンバン・公開済み一覧・
+  設定画面などプッシュが来ない画面は Server Component ＋ Server Action のまま。編集中バッファはキャッシュに入れない（§2）
 - [x] `components/ui/` に使う非スタイル部品 → **Radix（`radix-ui`）**（content-pipeline design.md §9-10）
 - [x] Markdown エディタ → **CodeMirror 6**（ADR-0016）。自作しない（tech.md）
 - [ ] グラフライブラリ → M2（ダッシュボード着手時）
