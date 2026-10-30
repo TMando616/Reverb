@@ -130,6 +130,8 @@ async def test_convert_edit_publish_push_and_cancel(
     assert cancelled.status_code == 204
     assert (await owner_client.get(base)).json()["status"] == "drafting"
     assert (await owner_client.get(f"/projects/{project_id}/publications")).json() == []
+    # 変換・原稿の編集・公開・取消を通しても、本文の正（contents.body_md）は書き換わらない（C4）。
+    assert (await owner_client.get(base)).json()["body_md"] == "ハマった"
 
 
 async def test_error_statuses(

@@ -15,13 +15,20 @@ type Props = {
   content: Content;
   memberNames: Record<number, string>;
   publications: Publication[];
+  channelLabels: Record<string, string>;
 };
 
 /**
  * 閲覧画面（reviewer / demo）：プレビューと文字数、履歴の閲覧のみ（content-pipeline C5・C8）。
  * エディタは読み込まない。書き込みの API はどのみち 403 になる（frontend.md §1）。
  */
-export function ContentViewer({ projectId, content, memberNames, publications }: Props) {
+export function ContentViewer({
+  projectId,
+  content,
+  memberNames,
+  publications,
+  channelLabels,
+}: Props) {
   const [showHistory, setShowHistory] = useState(false);
 
   return (
@@ -34,7 +41,12 @@ export function ContentViewer({ projectId, content, memberNames, publications }:
           {STATUS_LABELS[content.status]}
         </span>
         <span className="text-gray-500">閲覧のみ</span>
-        <PublishLink projectId={projectId} contentId={content.id} publications={publications} />
+        <PublishLink
+          projectId={projectId}
+          contentId={content.id}
+          publications={publications}
+          channelLabels={channelLabels}
+        />
       </div>
       <h1 className="text-xl font-bold">{content.title}</h1>
       <div className="flex flex-wrap items-center gap-3 text-sm">

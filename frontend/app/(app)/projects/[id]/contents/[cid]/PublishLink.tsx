@@ -2,10 +2,16 @@ import Link from "next/link";
 
 import type { Publication } from "@/lib/api/types";
 
-type Props = { projectId: number; contentId: number; publications: Publication[] };
+type Props = {
+  projectId: number;
+  contentId: number;
+  publications: Publication[];
+  /** チャネルの表示名（`/channels` の capabilities から）。チャネル名で分岐を書かない（C1）。 */
+  channelLabels: Record<string, string>;
+};
 
 /** 編集・閲覧画面のヘッダに置く、公開画面への導線と公開先のバッジ（publishing design.md §13-1）。 */
-export function PublishLink({ projectId, contentId, publications }: Props) {
+export function PublishLink({ projectId, contentId, publications, channelLabels }: Props) {
   return (
     <span className="flex items-center gap-2 text-sm">
       <Link
@@ -23,7 +29,7 @@ export function PublishLink({ projectId, contentId, publications }: Props) {
           title={publication.url}
           className="rounded bg-green-100 px-1.5 text-xs text-green-800"
         >
-          {publication.channel === "qiita" ? "Qiita" : publication.channel} 公開中
+          {channelLabels[publication.channel] ?? publication.channel} 公開中
         </a>
       ))}
     </span>

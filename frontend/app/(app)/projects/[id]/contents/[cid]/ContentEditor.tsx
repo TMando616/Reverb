@@ -34,6 +34,7 @@ type Props = {
   tags: Tag[];
   memberNames: Record<number, string>;
   publications: Publication[];
+  channelLabels: Record<string, string>;
 };
 
 const STATUS_TEXT: Record<SaveStatus, string> = {
@@ -49,7 +50,14 @@ const STATUS_TEXT: Record<SaveStatus, string> = {
  * サーバー状態（コンテンツ）は TanStack Query のキャッシュ、編集中バッファは
  * `useContentWriter` のローカル状態。この2つを混ぜない（frontend.md §2）。
  */
-export function ContentEditor({ projectId, initial, tags, memberNames, publications }: Props) {
+export function ContentEditor({
+  projectId,
+  initial,
+  tags,
+  memberNames,
+  publications,
+  channelLabels,
+}: Props) {
   const { data: content = initial } = useQuery({
     queryKey: queryKeys.content(projectId, initial.id),
     queryFn: async () => {
@@ -155,7 +163,12 @@ export function ContentEditor({ projectId, initial, tags, memberNames, publicati
             }))}
             emptyLabel="ここから動かせる先はありません"
           />
-          <PublishLink projectId={projectId} contentId={initial.id} publications={publications} />
+          <PublishLink
+            projectId={projectId}
+            contentId={initial.id}
+            publications={publications}
+            channelLabels={channelLabels}
+          />
         </div>
         <div className="flex items-center gap-2 text-sm" aria-live="polite">
           <span

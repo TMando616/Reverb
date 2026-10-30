@@ -6,6 +6,7 @@ import { apiFetch, type ApiResult } from "@/lib/api/server";
 import { queryKeys } from "@/lib/api/query-keys";
 import {
   canWrite,
+  type Channel,
   type ChannelView,
   type Content,
   type Me,
@@ -32,7 +33,7 @@ export default async function ContentPage(props: PageProps<"/projects/[id]/conte
     notFound();
   }
 
-  const [project, content, tags, members, me, qiita] = await Promise.all([
+  const [project, content, tags, members, me, qiita, channels] = await Promise.all([
     apiFetch<Project>(`/projects/${projectId}`),
     apiFetch<Content>(`/projects/${projectId}/contents/${contentId}`),
     apiFetch<TagWithUsage[]>(`/projects/${projectId}/tags`),
@@ -40,8 +41,10 @@ export default async function ContentPage(props: PageProps<"/projects/[id]/conte
     apiFetch<Me>("/auth/me"),
     // 公開先のバッジ用（publishing design.md §13-1）。M1 のチャネルは Qiita だけ。
     apiFetch<ChannelView>(`/projects/${projectId}/contents/${contentId}/channels/qiita`),
+    apiFetch<Channel[]>("/channels"),
   ]);
-  for (const result of [project, content, tags, members, me, qiita] as ApiResult<unknown>[]) {
+  const results = [project, content, tags, members, me, qiita, channels] as ApiResult<unknown>[];
+  for (const result of results) {
     if (!result.ok) {
       if (result.status === 401) redirect("/login");
       if (result.status === 404) notFound();
@@ -54,8 +57,19 @@ export default async function ContentPage(props: PageProps<"/projects/[id]/conte
       );
     }
   }
-  if (!project.ok || !content.ok || !tags.ok || !members.ok || !me.ok || !qiita.ok) return null;
+  if (
+    !project.ok ||
+    !content.ok ||
+    !tags.ok ||
+    !members.ok ||
+    !me.ok ||
+    !qiita.ok ||
+    !channels.ok
+  ) {
+    return null;
+  }
   const publications = qiita.data.publication ? [qiita.data.publication] : [];
+  const channelLabels = Object.fromEntries(channels.data.map((c) => [c.code, c.label]));
 
   const memberNames = Object.fromEntries(
     members.data.map((member) => [member.user_id, member.display_name]),
@@ -76,6 +90,7 @@ export default async function ContentPage(props: PageProps<"/projects/[id]/conte
               tags={tags.data}
               memberNames={memberNames}
               publications={publications}
+              channelLabels={channelLabels}
             />
           ) : (
             <ContentViewer
@@ -83,6 +98,7 @@ export default async function ContentPage(props: PageProps<"/projects/[id]/conte
               content={content.data}
               memberNames={memberNames}
               publications={publications}
+              channelLabels={channelLabels}
             />
           )}
         </HydrationBoundary>
