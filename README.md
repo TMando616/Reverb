@@ -108,3 +108,33 @@ docker compose up
 ```
 
 ※ 環境構築（M0）完了後に手順を追記する。
+
+### チャネル変換と Qiita 公開に要る環境変数
+
+| 変数 | 用途 |
+|---|---|
+| `ANTHROPIC_API_KEY` | チャネル変換（Claude API）。compose はホストの値をそのまま渡す。無いと変換ジョブが `misconfigured` で失敗する |
+| `TOKEN_ENCRYPTION_KEYS` | Qiita のアクセストークンを暗号化する Fernet 鍵（カンマ区切り）。**本番では必須**（無いと起動しない）。compose にはローカル専用の既知の鍵が入っている |
+| `RUN_CONVERSION_WORKER` | 変換ジョブのワーカーを API と同じプロセスで動かすか（既定 `true`・ADR-0017） |
+
+鍵の作り方：
+
+```bash
+docker compose exec backend uv run python -c \
+    "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+```
+
+**鍵の差し替え**：新しい鍵を**先頭**に足して `TOKEN_ENCRYPTION_KEYS=新しい鍵,古い鍵` にする。古い鍵で暗号化されたトークンは、次に投稿・更新で使ったときに新しい鍵で暗号化し直される。全員のトークンが入れ替わったら古い鍵を外す（外したあとに古い鍵のままのトークンは読めなくなり、画面で再登録を求める）。
+
+---
+
+## 運用メモ
+
+### Qiita に投稿できたのに、Reverb に記録が無いとき
+
+Qiita API に二重投稿を防ぐ仕組み（冪等キー）が無いため、**Qiita への投稿が成功した直後に DB への記録が失敗する**と、Qiita に記事があるのに Reverb では未公開のままになる（publishing design.md §10-3）。起きたら次の手順で直す。
+
+1. バックエンドのログで `qiita item ... was created but recording failed` を探し、記事 ID と URL を控える（直前の `qiita item created` の行にも同じ値が出ている）
+2. Qiita 上でその記事が残っていることを確かめる
+3. Reverb の画面で**もう一度投稿しない**（同じ記事が Qiita に2本できる）
+4. M3 で入る「URL の貼り戻し」で、控えた URL を Qiita の公開物として登録する。それまでは Qiita 側の記事を手で消してから、Reverb からもう一度投稿する
