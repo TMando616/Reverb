@@ -81,7 +81,7 @@
 
 - [ ] 8.1 手動確認（M1 の判定）：**ネタ → 執筆 → Qiita 向けに変換 → 原稿を直す → 限定共有で投稿 → 一般公開に更新**が通り、カンバンで `公開済` になる。再変換で手直しが消えない。2タブで同時に投稿して1件しかできない
 - [x] 8.2 README に「Qiita に投稿できたのに記録が無いとき」の手順（`design.md` §10-3）と、`TOKEN_ENCRYPTION_KEYS` の作り方・差し替え方を書く。CLAUDE.md のコマンドが増えていれば追記
-- [ ] 8.3 `requirements.md` の M1 の受け入れ条件にチェックを入れ、テストとの対応を `acceptance-trace.md` に残す
+- [x] 8.3 `requirements.md` の M1 の受け入れ条件にチェックを入れ、テストとの対応を `acceptance-trace.md` に残す
 - [ ] 8.4 steering / `requirements-overview.md` §13 を更新
 - [ ] 8.5 `/code-review` を実施し、指摘を修正
 
