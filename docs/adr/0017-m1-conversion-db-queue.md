@@ -2,7 +2,7 @@
 
 - **日付**: 2026-10-18
 - **ステータス**: 採用
-- **関連**: ADR-0013（ジョブ基盤・検討中）、`.kiro/specs/publishing/design.md` §7
+- **関連**: ADR-0013（ジョブ基盤・2026-11-03 に Redis を入れず本 ADR の仕組みを広げると決定）、`.kiro/specs/publishing/design.md` §7
 
 ## 背景
 
@@ -42,4 +42,6 @@ requirements は「リクエストを待たせず実行し、状態を画面に�
 
 - **M2 で ADR-0013 の基盤を入れるとき、書き直すのは `app/jobs/worker.py` だけにする。** そのために M1 で `JobDispatcher` ポートを切っておく（M1 は何もしない実装。M2 で「キューに id を積む」実装に替える）。`ConversionService` の `request / claim / complete / fail` と画面は変えない
 - `conversion_jobs` は M2 の `job_runs` と役割が重なる。M2 で `job_runs` を設計するときに、統合するか変換専用のまま残すかを決める
+
+> **追記（2026-11-03・ADR-0013）**：M2 も Redis を入れず、この DB キューを広げることにした。`worker.py` の書き直しは不要で、`JobDispatcher` は何もしない実装のままでよい。`conversion_jobs` は統合せず変換専用のまま残し、指標取得は `job_runs` で別に持つ。
 - ポーリングのため、変換の開始は最大2秒遅れる。変換自体が数十秒かかるので問題にしない

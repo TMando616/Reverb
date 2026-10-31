@@ -39,7 +39,7 @@ note の収益化を目指して文献を100本読んだが、**学んだこと�
 | バックエンド | Python / FastAPI |
 | フロントエンド | Next.js 16 / React 19 |
 | DB | PostgreSQL |
-| キュー | Redis ベースのジョブ基盤（未決・ADR-0013） |
+| キュー | PostgreSQL をキューにした自前ワーカー（Redis なし）→ ADR-0013 |
 | リアルタイム | WebSocket（編集ロック・コメント）／ SSE（ジョブ進捗） |
 | LLM | Claude API |
 | インフラ | AWS / GitHub Actions |
@@ -57,7 +57,7 @@ note の収益化を目指して文献を100本読んだが、**学んだこと�
 └──────────────────┘   (トークン   │   + MCPサーバー         │
                         認証)      │   + チャネルアダプタ     │
                                    │        ↕                │
-                                   │  PostgreSQL / Redis     │
+                                   │  PostgreSQL             │
                                    └────────────────────────┘
                                             ↕
                                    Qiita API / note / RSS

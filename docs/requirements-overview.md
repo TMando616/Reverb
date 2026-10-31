@@ -343,7 +343,7 @@ ingest_jobs / job_runs    取得ジョブ・リトライ・エラー履歴
 | バックエンド | **Python / FastAPI**（Controller → Service → Repository の一方向依存）→ ADR-0012 |
 | DB | PostgreSQL |
 | ORM | **SQLAlchemy 2.0**（async・ORM ＋ Core 併用）→ ADR-0002。マイグレーションは Alembic |
-| キュー | Redis ベースのジョブ基盤（未決・ADR-0013） |
+| キュー | PostgreSQL をキューにした自前ワーカー（Redis なし）→ ADR-0013 |
 | リアルタイム | WebSocket（編集ロック・レビューコメント）／ SSE（ジョブ進捗） |
 | フロントエンド | **Next.js 16 / React 19** |
 | エディタ | CodeMirror 6 または tiptap（**自作しない**） |
@@ -365,7 +365,7 @@ ingest_jobs / job_runs    取得ジョブ・リトライ・エラー履歴
 └──────────────────┘   (トークン   │   + MCPサーバー         │
                         認証)      │   + チャネルアダプタ     │
                                    │        ↕                │
-                                   │  PostgreSQL / Redis     │
+                                   │  PostgreSQL             │
                                    └────────────────────────┘
                                             ↕
                                    Qiita API / note / RSS
@@ -500,8 +500,8 @@ ingest_jobs / job_runs    取得ジョブ・リトライ・エラー履歴
 ## 13. 未決事項
 
 - [x] ORM の選定 → **SQLAlchemy 2.0**（ADR-0002）
-- [ ] 非同期ジョブ基盤の選定（Celery / ARQ / Dramatiq / Taskiq）→ ADR-0013（M2 着手前まで）
-  - M1 のチャネル変換は基盤なしで DB キュー＋常駐ワーカーで回す → **ADR-0017**。M2 で基盤を決めたら `app/jobs/worker.py` だけを書き直す
+- [x] 非同期ジョブ基盤の選定 → **Redis を入れず、PostgreSQL をキューにした自前ワーカー**（ADR-0013）
+  - M1 のチャネル変換の DB キュー（ADR-0017）を広げる。`conversion_jobs` は変換専用のまま残し、指標取得は `job_runs` で持つ
 - [ ] AWS の構成と**月額コストの見積り**（ECS Fargate / Lightsail / EC2 のどれにするか）→ ADR-0003
 - [x] エディタの選定 → **CodeMirror 6**（ADR-0016）
 - [x] スタイリングとデータフェッチ層の選定 → **Tailwind CSS ／ 編集画面だけ TanStack Query**（ADR-0015）

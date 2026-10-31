@@ -9,7 +9,7 @@
 | パッケージ管理 | **uv** | ロックファイルをコミットする |
 | DB | **PostgreSQL** | |
 | ORM | **SQLAlchemy 2.0**（async・ORM ＋ Core 併用） | ADR-0002。マイグレーションは Alembic |
-| ジョブ基盤 | **未決** — Celery / ARQ / Dramatiq / Taskiq | ADR-0013 で決める（M2 着手前まで）。M1 の変換ジョブは基盤なしで DB キュー（ADR-0017） |
+| ジョブ基盤 | **PostgreSQL をキューにした自前ワーカー**（Redis なし） | ADR-0013。`SKIP LOCKED` で拾う。変換は `conversion_jobs`（ADR-0017）、指標取得は `job_runs` で別テーブル |
 | リアルタイム | **WebSocket**（編集ロック・レビューコメント）／ **SSE**（ジョブ進捗） | 判断基準は「双方向が必要か」だけ → ADR-0006 |
 | フロントエンド | **Next.js 16 / React 19** | |
 | エディタ | **CodeMirror 6**（プレビューは react-markdown ＋ remark-gfm） | **自作しない**。ADR-0016 |
