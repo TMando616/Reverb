@@ -39,7 +39,7 @@
 | [0005](0005-channel-adapter.md) | 外部公開を3モードのアダプタで抽象化する | **採用** |
 | [0006](0006-websocket-vs-sse.md) | WebSocket と SSE の使い分け | **採用** |
 | [0007](0007-mcp-server-not-terminal.md) | ブラウザ内ターミナルではなく MCP サーバーで Claude Code と連携する | **採用** |
-| 0008 | 指標スナップショットのテーブル設計と性能 | 未着手 |
+| [0008](0008-metric-snapshots.md) | 指標スナップショットのテーブル設計と性能 | **採用** |
 | [0009](0009-layered-architecture.md) | レイヤー構成と依存方向 | **採用** |
 | [0010](0010-frontend-backend-separation.md) | フロントエンドとバックエンドを分離する | **採用** |
 | [0011](0011-async-jobs.md) | 非同期処理基盤に BullMQ + Redis を使う | 置き換え済み（0013） |
