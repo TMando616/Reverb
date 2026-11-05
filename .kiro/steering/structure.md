@@ -24,10 +24,14 @@ Reverb/
 │   │   │   ├── models.py      ORM モデル
 │   │   │   ├── schemas.py     Pydantic（リクエスト / レスポンス）
 │   │   │   └── deps.py        Depends の組み立て
-│   │   ├── channels/          チャネルアダプタ（Qiita / X / note / podcast）＝公開先
+│   │   ├── channels/          チャネルアダプタ（Qiita / X / note / podcast）＝公開先・指標と RSS の取得元
 │   │   ├── llm/               Claude API の呼び出しとプロンプト（変換の道具。チャネルではない）
 │   │   ├── mcp/               MCP サーバー
-│   │   ├── jobs/              ジョブ定義・ワーカー（→ ADR-0013）
+│   │   ├── jobs/              ワーカー（PostgreSQL のキュー・ADR-0013 / ADR-0017）
+│   │   │   ├── loop.py        ポーリングのループ（変換・指標で共通）
+│   │   │   ├── worker.py      変換ジョブ
+│   │   │   ├── metrics_worker.py  指標取得・RSS 取り込みのジョブ
+│   │   │   └── scheduler.py   1日1回の定期投入
 │   │   └── core/              設定・DB セッション・認証・例外ハンドラ
 │   ├── migrations/            Alembic
 │   ├── tests/
@@ -56,6 +60,7 @@ Controller → Service → Repository → DB
 
 - チャネルアダプタと LLM は Service から呼ぶ。Controller から直接呼ばない。**Service は Protocol（ポート）だけを知り、具体実装は `deps.py` で差し込む**
 - ジョブのプロセッサは Service を呼ぶ。Repository を直接叩かない
+- **キューを拾う SQL は各モジュールの Repository に置く**（テーブルがモジュールごとに違う）。`jobs/` に共通で置くのはループだけ
 - MCP サーバーは **Service 層を経由する**。専用の抜け道を作らない（認可を二重実装しないため）
 - **Service は Request / Response を知らない**（FastAPI の `Request` を持ち込まない）
 

@@ -14,7 +14,9 @@
 | フロントエンド | **Next.js 16 / React 19** | |
 | エディタ | **CodeMirror 6**（プレビューは react-markdown ＋ remark-gfm） | **自作しない**。ADR-0016 |
 | LLM | **Claude API**（`claude-opus-5-5`） | 公式 SDK `anthropic`（Python）を使う。呼び出しは `app/llm/` に閉じる |
-| 外部 HTTP | **httpx**（async） | Qiita API など。チャネルアダプタ（`app/channels/`）から使う |
+| 外部 HTTP | **httpx**（async） | Qiita API・RSS など。チャネルアダプタ（`app/channels/`）から使う |
+| XML の解析 | **defusedxml** | RSS の解析。外部実体・エンティティ展開の攻撃を止める（metrics design.md §8-2） |
+| グラフ | **Recharts**（フロント） | ダッシュボード・分析（metrics design.md §12-2） |
 | トークン暗号化 | **cryptography**（Fernet / MultiFernet） | 鍵は `TOKEN_ENCRYPTION_KEYS`。`app/core/crypto.py` |
 | MCP | サービス側に MCP サーバーエンドポイントを実装 | 公式 Python SDK `mcp` |
 | インフラ | **AWS** | 構成とコストは未決（ADR-0003） |
