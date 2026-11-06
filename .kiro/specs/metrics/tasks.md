@@ -12,7 +12,7 @@
 
 - [x] 0.1 ADR-0008「指標スナップショットのテーブル設計と性能」を書く（横持ち・公開物×日の PK・`project_id` / `channel` の非正規化・ロールアップとパーティションは M3 の実測まで作らない）。`docs/adr/README.md` の索引を「採用」に直す
 - [x] 0.2 steering：structure.md に `modules/metrics`・`jobs/loop.py` / `metrics_worker.py` / `scheduler.py`・`channels/podcast_rss.py` を足す。frontend.md の「グラフライブラリ → M2」を Recharts に直す。tech.md の依存の表に `defusedxml` と Recharts を足す
-- [ ] 0.3 依存を足す：backend に `defusedxml`（`uv lock`）、frontend に `recharts`（**React 19 対応の版を確かめてから**）。`docker compose up --build -V` で作り直して import できることを確認
+- [x] 0.3 依存を足す：backend に `defusedxml`（`uv lock`）、frontend に `recharts`（**React 19 対応の版を確かめてから**）。`docker compose up --build -V` で作り直して import できることを確認
 - [ ] 0.4 設定：`RUN_METRICS_WORKER`（既定 `true`）。`.env.example` と compose に追記
 
 ## 1. データモデルとマイグレーション（S1 / S4 / S6・`design.md` §3）
