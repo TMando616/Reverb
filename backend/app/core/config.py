@@ -32,6 +32,9 @@ class Settings(BaseSettings):
     conversion_effort: Effort = "medium"
     # 変換ジョブのワーカーを lifespan で起動するか（ADR-0017）。テストでは false。
     run_conversion_worker: bool = True
+    # 指標取得・RSS 取り込みのワーカー（定期投入を含む）を lifespan で起動するか
+    # （metrics design.md §6-1）。テストでは false にし、run_once / tick を直接呼ぶ。
+    run_metrics_worker: bool = True
 
     @property
     def is_production(self) -> bool:
