@@ -20,6 +20,15 @@ class ChannelCode(StrEnum):
 PublishMode = Literal["auto", "intent", "manual"]
 MetricsMode = Literal["auto", "manual", "none"]
 Format = Literal["markdown", "text"]
+# metric_snapshots の指標の列（ADR-0008）。列は汎用で、チャネルでの意味は MetricField.label が持つ。
+MetricColumn = Literal["views", "likes", "stocks", "comments"]
+METRIC_COLUMNS: tuple[MetricColumn, ...] = ("views", "likes", "stocks", "comments")
+
+
+@dataclass(frozen=True)
+class MetricField:
+    column: MetricColumn
+    label: str
 
 
 @dataclass(frozen=True)
@@ -28,22 +37,61 @@ class Capabilities:
     publish: PublishMode
     metrics: MetricsMode
     format: Format
+    # このチャネルで意味のある指標の列。ここに無い列は常に NULL（metrics design.md §4）。
+    metric_fields: tuple[MetricField, ...]
+    # 分析でチャネル内を比べるときの代表指標（metrics design.md §9-1）。
+    primary_metric: MetricColumn
     max_length: int | None = None
+
+    def metric_columns(self) -> frozenset[MetricColumn]:
+        return frozenset(f.column for f in self.metric_fields)
 
 
 CAPABILITIES: dict[ChannelCode, Capabilities] = {
     ChannelCode.QIITA: Capabilities(
-        label="Qiita", publish="auto", metrics="auto", format="markdown"
+        label="Qiita",
+        publish="auto",
+        metrics="auto",
+        format="markdown",
+        # 閲覧数は取れない日がある（page_views_count が NULL）。取れなければ NULL のまま持つ。
+        metric_fields=(
+            MetricField("likes", "LGTM"),
+            MetricField("stocks", "ストック"),
+            MetricField("comments", "コメント"),
+            MetricField("views", "閲覧数"),
+        ),
+        primary_metric="likes",
     ),
-    # 以下は M3 で使う。文字数の数え方（全角を2と数える等）は M3 着手時に確認する。
+    # 以下の publish は M3 で使う。文字数の数え方（全角を2と数える等）は M3 着手時に確認する。
     ChannelCode.X: Capabilities(
-        label="X", publish="intent", metrics="manual", format="text", max_length=280
+        label="X",
+        publish="intent",
+        metrics="manual",
+        format="text",
+        metric_fields=(MetricField("views", "インプレッション"), MetricField("likes", "いいね")),
+        primary_metric="views",
+        max_length=280,
     ),
     ChannelCode.NOTE: Capabilities(
-        label="note", publish="manual", metrics="manual", format="markdown"
+        label="note",
+        publish="manual",
+        metrics="manual",
+        format="markdown",
+        metric_fields=(
+            MetricField("views", "ビュー"),
+            MetricField("likes", "スキ"),
+            MetricField("comments", "コメント"),
+        ),
+        primary_metric="likes",
     ),
+    # 公開物は RSS で自動登録するが、指標（再生数）は手入力（metrics design.md §4）。
     ChannelCode.PODCAST: Capabilities(
-        label="ポッドキャスト", publish="manual", metrics="manual", format="text"
+        label="ポッドキャスト",
+        publish="manual",
+        metrics="manual",
+        format="text",
+        metric_fields=(MetricField("views", "再生数"),),
+        primary_metric="views",
     ),
 }
 

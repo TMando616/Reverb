@@ -17,7 +17,7 @@
 
 ## 1. データモデルとマイグレーション（S1 / S4 / S6・`design.md` §3）
 
-- [ ] 1.1 `channels/capabilities.py`：`MetricField` と `metric_fields` / `primary_metric` を足す（§4 の表）。既存のテストが通ること
+- [x] 1.1 `channels/capabilities.py`：`MetricField` と `metric_fields` / `primary_metric` を足す（§4 の表）。既存のテストが通ること
 - [ ] 1.2 `metrics/models.py`：`MetricSnapshot` / `JobRun` / `JobRunItem` / `PodcastFeed` / `PodcastEpisode`
 - [ ] 1.3 マイグレーション生成 → **部分 UNIQUE 2本（定期の `(project_id, kind, target_date)`・実行中の `(project_id, kind)`）、PK、CHECK、複合 FK を目視** → `upgrade head` / `downgrade -1` / `upgrade head` が通る
 - [ ] 1.4 DB 制約のテスト：同じ公開物×日の二重 INSERT が IntegrityError、定期の run が同じ日に2件入らない、実行中の run が同じ企画×種類で2件入らない、負の値・他企画の公開物で IntegrityError
