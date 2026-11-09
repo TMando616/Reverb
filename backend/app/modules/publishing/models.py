@@ -201,6 +201,8 @@ class Publication(TimestampMixin, Base):
         _channel_check("publications"),
         CheckConstraint(_VISIBILITY_CHECK, name="ck_publications_visibility"),
         _content_fk("publications"),
+        # metrics の複合 FK (publication_id, project_id) の参照先（metrics design.md §3-4）。
+        UniqueConstraint("id", "project_id", name="uq_publications_id_project"),
         # 同じコンテンツを同じチャネルに二重に公開しない（C6・C7）。
         Index(
             "uq_publications_active_content_channel",
