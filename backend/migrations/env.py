@@ -10,6 +10,7 @@ from app.core.db import Base
 # 全モジュールの models を import して Base.metadata に登録する
 from app.modules.auth import models as _auth_models  # noqa: F401
 from app.modules.contents import models as _contents_models  # noqa: F401
+from app.modules.metrics import models as _metrics_models  # noqa: F401
 from app.modules.projects import models as _projects_models  # noqa: F401
 from app.modules.publishing import models as _publishing_models  # noqa: F401
 from sqlalchemy import Connection
