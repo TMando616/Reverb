@@ -20,7 +20,7 @@
 - [x] 1.1 `channels/capabilities.py`：`MetricField` と `metric_fields` / `primary_metric` を足す（§4 の表）。既存のテストが通ること
 - [x] 1.2 `metrics/models.py`：`MetricSnapshot` / `JobRun` / `JobRunItem` / `PodcastFeed` / `PodcastEpisode`
 - [x] 1.3 マイグレーション生成 → **部分 UNIQUE 2本（定期の `(project_id, kind, target_date)`・実行中の `(project_id, kind)`）、PK、CHECK、複合 FK を目視** → `upgrade head` / `downgrade -1` / `upgrade head` が通る
-- [ ] 1.4 DB 制約のテスト：同じ公開物×日の二重 INSERT が IntegrityError、定期の run が同じ日に2件入らない、実行中の run が同じ企画×種類で2件入らない、負の値・他企画の公開物で IntegrityError
+- [x] 1.4 DB 制約のテスト：同じ公開物×日の二重 INSERT が IntegrityError、定期の run が同じ日に2件入らない、実行中の run が同じ企画×種類で2件入らない、負の値・他企画の公開物で IntegrityError
 - [ ] 1.5 `.importlinter`：containers と service 系の契約に `metrics` を足す。新しい契約（metrics.service は `app.channels.qiita` / `app.channels.podcast_rss` / `httpx` を import しない）
 
 ## 2. 認可とスナップショット（S1 / S7・`design.md` §5・§4）
