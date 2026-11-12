@@ -10,6 +10,7 @@ containers =
     app.modules.projects
     app.modules.contents
     app.modules.publishing
+    app.modules.metrics
 layers =
     router
     service
@@ -23,6 +24,7 @@ source_modules =
     app.modules.projects.service
     app.modules.contents.service
     app.modules.publishing.service
+    app.modules.metrics.service
 forbidden_modules =
     sqlalchemy
     app.core.db
@@ -36,6 +38,7 @@ source_modules =
     app.modules.projects.service
     app.modules.contents.service
     app.modules.publishing.service
+    app.modules.metrics.service
 forbidden_modules =
     fastapi
     starlette
@@ -69,4 +72,15 @@ forbidden_modules =
     app.modules.projects.repository
     app.modules.contents.repository
     app.modules.publishing.repository
+    app.modules.metrics.repository
 allow_indirect_imports = True
+
+[importlinter:contract:metrics-service-ports-only]
+name = metrics の Service は外部 API の具体実装を知らない（ポートだけを知る）
+type = forbidden
+source_modules =
+    app.modules.metrics.service
+forbidden_modules =
+    app.channels.qiita
+    app.channels.podcast_rss
+    httpx
