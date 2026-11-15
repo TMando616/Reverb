@@ -38,6 +38,11 @@ class Permission(StrEnum):
     CONTENT_TRANSITION = "content:transition"  # 状態遷移
     # 外部への公開・更新・公開取消。owner のみ（publishing design.md §5）
     CONTENT_PUBLISH = "content:publish"
+    # 指標の手入力。owner / editor（metrics design.md §5-1）
+    METRICS_INPUT = "metrics:input"
+    # 指標の手動実行・再実行・RSS の登録。owner のみ。今は CONTENT_PUBLISH と同じロールだが、
+    # 意味の違う操作なので分けておく（metrics design.md §5-1）
+    METRICS_COLLECT = "metrics:collect"
 
 
 ROLE_PERMISSIONS: dict[Role, frozenset[Permission]] = {
@@ -48,6 +53,7 @@ ROLE_PERMISSIONS: dict[Role, frozenset[Permission]] = {
             Permission.CONTENT_VIEW,
             Permission.CONTENT_WRITE,
             Permission.CONTENT_TRANSITION,
+            Permission.METRICS_INPUT,
         }
     ),
     Role.REVIEWER: frozenset({Permission.PROJECT_VIEW, Permission.CONTENT_VIEW}),

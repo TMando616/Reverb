@@ -72,6 +72,29 @@ async def test_only_a_real_owner_can_publish(role: Role, is_demo: bool, allowed:
     assert await authz.allows(actor, 10, Permission.CONTENT_PUBLISH) is allowed
 
 
+@pytest.mark.parametrize(
+    ("role", "is_demo", "can_input", "can_collect"),
+    [
+        (Role.OWNER, False, True, True),
+        (Role.EDITOR, False, True, False),
+        (Role.REVIEWER, False, False, False),
+        (Role.OWNER, True, False, False),
+        (Role.EDITOR, True, False, False),
+    ],
+)
+async def test_metrics_permissions(
+    role: Role, is_demo: bool, can_input: bool, can_collect: bool
+) -> None:
+    # 手入力は書ける人まで、取得の実行と RSS の登録は owner だけ（metrics design.md §5-1）。
+    authz = _authorizer({(1, 10): role})
+    actor = Actor(user_id=1, is_demo=is_demo)
+
+    assert await authz.allows(actor, 10, Permission.METRICS_INPUT) is can_input
+    assert await authz.allows(actor, 10, Permission.METRICS_COLLECT) is can_collect
+    # 閲覧は全員（demo も）
+    assert await authz.allows(actor, 10, Permission.PROJECT_VIEW) is True
+
+
 def test_require_not_demo_blocks_demo() -> None:
     with pytest.raises(ForbiddenError):
         require_not_demo(Actor(user_id=1, is_demo=True))

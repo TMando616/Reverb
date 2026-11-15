@@ -25,7 +25,7 @@
 
 ## 2. 認可とスナップショット（S1 / S7・`design.md` §5・§4）
 
-- [ ] 2.1 `Permission.METRICS_INPUT`（owner / editor）・`METRICS_COLLECT`（owner）を足す。既存の権限テストに reviewer / demo の否定を足す
+- [x] 2.1 `Permission.METRICS_INPUT`（owner / editor）・`METRICS_COLLECT`（owner）を足す。既存の権限テストに reviewer / demo の否定を足す
 - [ ] 2.2 `SnapshotService`：`record_fetched`（システム用・UPSERT）、`input_manual`（`metrics = manual` のチャネルだけ・チャネルに無い指標・未来日・公開日前・負の値を 422）、`list_for_publication`
 - [ ] 2.3 ユニットテスト：同日の上書き ／auto のチャネルへの手入力で 422 ／reviewer・demo の 403 ／他企画の公開物は 404 ／取消済みの公開物のスナップショットも読める
 
