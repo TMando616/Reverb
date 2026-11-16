@@ -208,3 +208,38 @@ class QiitaRateLimitedAppError(AppError):
 
     def __init__(self, message: str = "qiita rate limit exceeded") -> None:
         super().__init__(message)
+
+
+# --- metrics（metrics design.md §13） ---
+
+
+class MetricsNotManualError(AppError):
+    """自動取得のチャネルに手入力しようとした（S7「自動取得した値は手入力で上書きしない」）。"""
+
+    status = 422
+    code = "metrics_not_manual"
+
+    def __init__(
+        self, message: str = "metrics of this channel are collected automatically"
+    ) -> None:
+        super().__init__(message)
+
+
+class InvalidMetricError(AppError):
+    """そのチャネルに無い指標を手入力しようとした（capabilities の ``metric_fields`` の外）。"""
+
+    status = 422
+    code = "invalid_metric"
+
+    def __init__(self, message: str = "this channel does not have the metric") -> None:
+        super().__init__(message)
+
+
+class InvalidSnapshotError(AppError):
+    """未来の日付・公開日より前の日付・負の値・値が1つも無い。"""
+
+    status = 422
+    code = "invalid_snapshot"
+
+    def __init__(self, message: str = "invalid snapshot") -> None:
+        super().__init__(message)
