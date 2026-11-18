@@ -8,10 +8,9 @@ M1 はジョブ基盤を持たず、``conversion_jobs`` の行をキューにし
 3. 結果を書き、原稿へ反映する（別セッション → commit）
 
 commit の持ち主はここ（cli.py と同じく、Service の外にある commit）。Service は flush まで。
-M2 でジョブ基盤に載せ替えるときは、このファイルだけを書き直す。
+ループ（ポーリング間隔・失敗でループを止めない）は ``loop.py`` と共通（metrics design.md §2）。
 """
 
-import asyncio
 import logging
 from collections.abc import Callable
 from contextlib import AbstractAsyncContextManager
@@ -19,6 +18,7 @@ from contextlib import AbstractAsyncContextManager
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import VersionConflictError
+from app.jobs import loop
 from app.modules.publishing.deps import build_conversion_service
 from app.modules.publishing.ports import ConversionFailed, ConversionOutput, Converter
 from app.modules.publishing.service import ConversionService
@@ -99,14 +99,8 @@ async def _write_result(
 
 async def run_forever(sessions: SessionFactory, converter: Converter) -> None:
     """lifespan から起動し、終了時にキャンセルされる。1周の失敗でループを止めない。"""
-    logger.info("conversion worker started")
-    while True:
-        try:
-            worked = await run_once(sessions, converter)
-        except asyncio.CancelledError:
-            raise
-        except Exception:
-            logger.exception("conversion worker iteration failed")
-            worked = False
-        if not worked:
-            await asyncio.sleep(POLL_INTERVAL_SECONDS)
+    await loop.run_forever(
+        lambda: run_once(sessions, converter),
+        interval=POLL_INTERVAL_SECONDS,
+        name="conversion",
+    )
