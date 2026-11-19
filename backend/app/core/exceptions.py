@@ -243,3 +243,23 @@ class InvalidSnapshotError(AppError):
 
     def __init__(self, message: str = "invalid snapshot") -> None:
         super().__init__(message)
+
+
+class JobInProgressError(AppError):
+    """同じ企画で同じ種類のジョブが待機中・実行中（部分 UNIQUE ``uq_job_runs_active``）。"""
+
+    status = 409
+    code = "job_in_progress"
+
+    def __init__(self, message: str = "a job of this kind is already queued or running") -> None:
+        super().__init__(message)
+
+
+class NothingToRetryError(AppError):
+    """再実行しようとした run に失敗した item が無い。"""
+
+    status = 422
+    code = "nothing_to_retry"
+
+    def __init__(self, message: str = "the run has no failed items") -> None:
+        super().__init__(message)

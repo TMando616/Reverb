@@ -5,6 +5,7 @@ Service はここにある Protocol とデータの型だけを知る。公開�
 """
 
 from collections.abc import Mapping
+from datetime import datetime
 from typing import Protocol
 
 from app.channels.capabilities import MetricColumn
@@ -18,3 +19,29 @@ class PublicationGateway(Protocol):
     async def get_in_project(self, publication_id: int, project_id: int) -> Publication | None:
         """取り消した公開物も返す（取消後も推移は読めるようにする・S1）。"""
         ...
+
+
+class JobFailed(Exception):
+    """item 1件の失敗（design.md §6-2）。リトライするかどうかは取得側が決めて載せる。
+
+    ``error_code`` は publishing の Qiita のコードか ``feed_unavailable`` / ``forbidden`` /
+    ``internal_error``。メッセージにトークン・本文を含めない。
+    """
+
+    def __init__(
+        self,
+        error_code: str,
+        message: str,
+        *,
+        retryable: bool = True,
+        rate_limited: bool = False,
+        reset_at: datetime | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.error_code = error_code
+        self.message = message
+        self.retryable = retryable
+        # 429。attempts を数えず、``reset_at``（無ければ既定の待ち）まで同じ種類の item を
+        # 後ろにずらす（design.md §6-2・§6-4）
+        self.rate_limited = rate_limited
+        self.reset_at = reset_at

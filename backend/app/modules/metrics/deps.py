@@ -10,8 +10,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.authorization import ProjectAuthorizer
 from app.core.db import get_session
-from app.modules.metrics.repository import SnapshotRepository
-from app.modules.metrics.service import SnapshotService
+from app.modules.metrics.repository import JobRepository, SnapshotRepository
+from app.modules.metrics.service import JobService, SnapshotService
 from app.modules.projects.repository import ProjectMemberRepository
 from app.modules.publishing.repository import PublicationRepository
 
@@ -30,3 +30,14 @@ def build_snapshot_service(session: AsyncSession) -> SnapshotService:
 
 def get_snapshot_service(session: SessionDep) -> SnapshotService:
     return build_snapshot_service(session)
+
+
+def build_job_service(session: AsyncSession) -> JobService:
+    return JobService(
+        jobs=JobRepository(session),
+        authz=ProjectAuthorizer(ProjectMemberRepository(session)),
+    )
+
+
+def get_job_service(session: SessionDep) -> JobService:
+    return build_job_service(session)
