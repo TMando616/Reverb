@@ -34,7 +34,7 @@
 - [x] 3.1 `jobs/loop.py`：`run_forever(run_once, interval)` を切り出し、変換ワーカー（`worker.py`）をこれに寄せる。**変換の既存テストがそのまま通ること**
 - [x] 3.2 `JobService`：`request_run`（手動・409）、`retry`（失敗 item だけで新しい run・元を書き換えない・失敗が無ければ 422）、`claim`（`SKIP LOCKED`・`next_run_at <= now()`）、`succeed` / `fail`（リトライの判定・間隔・上限・run の件数と最終状態）、`reap_stuck`（10分）
 - [x] 3.3 `jobs/scheduler.py`：`tick(now)`。JST 05:00 以降、対象の企画ごとに `ON CONFLICT DO NOTHING` で投入。実行中なら見送る
-- [ ] 3.4 `jobs/metrics_worker.py`：`run_once`（拾う → DB の外で取得 → 書く）。60秒ごとに `tick`。`main.py` の lifespan で変換とは**別のタスク**として起動する
+- [x] 3.4 `jobs/metrics_worker.py`：`run_once`（拾う → DB の外で取得 → 書く）。60秒ごとに `tick`。`main.py` の lifespan で変換とは**別のタスク**として起動する
 - [ ] 3.5 ユニットテスト：**同じ日に何度 tick しても run は1件** ／05:00 前は入らない ／リトライの間隔（乱数を注入）と5回で確定 ／401・404 はリトライしない ／429 は attempts を増やさず同じチャネルの残りを後ろにずらす ／止まった item の回収 ／`succeeded` / `partially_failed` / `failed`
 
 ## 4. Qiita の指標取得（S2・`design.md` §7）

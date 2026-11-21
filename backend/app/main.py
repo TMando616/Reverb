@@ -9,6 +9,7 @@ from fastapi import FastAPI
 from app.core.config import get_settings
 from app.core.db import async_session
 from app.core.exception_handlers import register_exception_handlers
+from app.jobs import metrics_worker
 from app.jobs.worker import run_forever
 from app.modules.auth.router import router as auth_router
 from app.modules.contents.router import router as contents_router
@@ -26,15 +27,27 @@ from app.modules.publishing.router import (
 
 @contextlib.asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
-    """変換ジョブのワーカーを同じプロセスで動かす（ADR-0017）。テストでは止めておく。"""
-    task: asyncio.Task[None] | None = None
-    if get_settings().run_conversion_worker:
-        task = asyncio.create_task(run_forever(async_session, get_converter()))
+    """ジョブのワーカーを同じプロセスで動かす（ADR-0013・ADR-0017）。テストでは止めておく。
+
+    変換と指標は**別のタスク**にする。変換が数分かかっている間も指標の取得を止めない
+    （metrics design.md §6-1）。
+    """
+    settings = get_settings()
+    tasks: list[asyncio.Task[None]] = []
+    if settings.run_conversion_worker:
+        tasks.append(asyncio.create_task(run_forever(async_session, get_converter())))
+    if settings.run_metrics_worker:
+        tasks.append(
+            asyncio.create_task(
+                metrics_worker.run_forever(async_session, metrics_worker.default_handlers())
+            )
+        )
     try:
         yield
     finally:
-        if task is not None:
+        for task in tasks:
             task.cancel()
+        for task in tasks:
             with contextlib.suppress(asyncio.CancelledError):
                 await task
 
